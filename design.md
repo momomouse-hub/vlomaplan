@@ -1,1 +1,1 @@
-<iframe style="border: 1px solid rgba(0, 0, 0, 0.1);" width="800" height="450" src="https://embed.figma.com/design/4ZykoY2DLnEwfnnn13s2lF/%E3%83%AF%E3%82%A4%E3%83%A4%E3%83%BC%E3%83%95%E3%83%AC%E3%83%BC%E3%83%A0?embed-host=share" allowfullscreen></iframe>
+![ワイヤーフレーム](./wireframe.png)
