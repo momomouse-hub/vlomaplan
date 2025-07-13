@@ -1,1 +1,127 @@
-![ワイヤーフレーム](./wireframe.png)
+## 業務フロー
+```mermaid
+graph TD
+  A[トップ画面アクセス] --> B{ログイン状態チェック}
+  B -- ログイン済み --> C[ユーザー識別（user_id）]
+  B -- 未ログイン --> D[ゲストトークン発行 → Cookieに保存]
+  C --> E[検索バーで動画検索]
+  D --> E
+  %% 動画検索の検索履歴を保存
+  E --> F[検索履歴を保存（search_histories）]
+  F --> G[YouTube APIで動画一覧取得]
+  G --> H[動画を選んで視聴]
+  H --> I{関連動画を取得？}
+  I -- ボタン押す --> J[YouTube APIで関連動画取得]
+  I -- 押さない --> K[スキップ]
+  J --> L[関連動画を表示]
+  K --> M
+  L --> M[気になった場所を検索（地図検索）]
+  %% 地図検索の検索履歴を保存
+  M --> N[検索履歴を保存（search_histories）]
+  N --> O[Google Maps APIで候補取得]
+  O --> P[地図にピンを表示]
+  P --> Q[ピンをクリック → 行きたい場所に追加]
+  Q --> R[行きたい場所から旅行プランに追加]
+  R --> S{ログイン済み？}
+  S -- Yes --> T[DBに保存（wishlists, travel_plans）]
+  S -- No --> U[一時保存（Redis等）]
+  U --> V[7日後に削除（定期バッチ処理）]
+
+  %% ログイン誘導など
+  D --> W[「ログインすれば保存できます」案内を表示]
+  W --> X[会員登録 or ログイン]
+  X --> C
+```
+## 画面遷移図
+![画面遷移図](./画面遷移図.png)
+
+## ワイヤーフレーム
+![ワイヤーフレーム](./ワイヤーフレーム.png)
+
+## ER図
+```mermaid
+erDiagram
+  USERS {
+    int id PK
+  }
+
+  USER_CREDENTIALS {
+    int id PK
+    int user_id FK
+    string email
+    string encrypted_password
+  }
+
+  USER_VISITS {
+    int id PK
+    int user_id FK
+    string token
+    datetime created_at
+  }
+
+  SEARCH_HISTORIES {
+    int id PK
+    int user_id FK
+    string keyword
+    datetime created_at
+  }
+
+  VIDEOS {
+    int id PK
+    string youtube_video_id
+    string title
+    string thumbnail_url
+    int search_history_id FK
+    datetime created_at
+  }
+
+  PLACES {
+    int id PK
+    string name
+    string address
+    float latitude
+    float longitude
+    string place_id
+    string opening_hours
+    int video_id FK
+  }
+
+  WISHLISTS {
+    int id PK
+    int user_id FK
+    int place_id FK
+    int video_id FK
+    datetime added_at
+  }
+
+  TRAVEL_PLANS {
+    int id PK
+    int user_id FK
+    string name
+  }
+
+  TRAVEL_PLAN_ITEMS {
+    int id PK
+    int travel_plan_id FK
+    int place_id FK
+    int order
+  }
+
+  USERS ||--|| USER_CREDENTIALS : has
+  USERS ||--o{ USER_VISITS : has
+  USERS ||--o{ SEARCH_HISTORIES : has
+  USERS ||--o{ WISHLISTS : has
+  USERS ||--o{ TRAVEL_PLANS : has
+
+  SEARCH_HISTORIES ||--o{ VIDEOS : has
+  VIDEOS ||--o{ PLACES : suggests
+  VIDEOS ||--o{ WISHLISTS : source_of
+
+  TRAVEL_PLANS ||--o{ TRAVEL_PLAN_ITEMS : has
+  TRAVEL_PLAN_ITEMS }o--|| PLACES : includes
+  WISHLISTS }o--|| PLACES : includes
+```
+
+
+## システム構成図
+![システム構成図](システム構成図.png)
