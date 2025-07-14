@@ -107,8 +107,8 @@ erDiagram
     int order
   }
 
-  USERS ||--|| USER_CREDENTIALS : has
-  USERS ||--o{ USER_VISITS : has
+  USERS ||--o| USER_CREDENTIALS : has
+  USERS ||--o| USER_VISITS : has
   USERS ||--o{ SEARCH_HISTORIES : has
   USERS ||--o{ WISHLISTS : has
   USERS ||--o{ TRAVEL_PLANS : has
