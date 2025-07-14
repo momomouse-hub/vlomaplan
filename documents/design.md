@@ -39,7 +39,7 @@ graph TD
 ![ワイヤーフレーム](./ワイヤーフレーム.png)
 
 ## ER図
-```
+```mermaid
 erDiagram
   USERS {
     int id PK
