@@ -72,7 +72,6 @@ erDiagram
     string title
     string thumbnail_url
     int search_history_id FK
-    datetime created_at
   }
 
   PLACES {
