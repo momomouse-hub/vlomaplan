@@ -39,7 +39,7 @@ graph TD
 ![ワイヤーフレーム](./ワイヤーフレーム.png)
 
 ## ER図
-```mermaid
+```
 erDiagram
   USERS {
     int id PK
@@ -47,41 +47,54 @@ erDiagram
 
   USER_CREDENTIALS {
     int id PK
-    int user_id FK,UNIQUE
-    string email(255) UNIQUE
-    string encrypted_password(60)
+    int user_id FK
+    %% UNIQUE
+    string email
+    %% UNIQUE, VARCHAR(255)
+    string encrypted_password
+    %% VARCHAR(60)
   }
 
   USER_VISITS {
     int id PK
-    int user_id FK,UNIQUE
-    string token(36) UNIQUE
+    int user_id FK
+    %% UNIQUE
+    string token
+    %% UNIQUE, CHAR(36)
     datetime created_at
   }
 
   SEARCH_HISTORIES {
     int id PK
     int user_id FK
-    string keyword(100)
+    string keyword
+    %% VARCHAR(100)
     datetime created_at
   }
 
   VIDEOS {
     int id PK
-    string youtube_video_id(11)
-    string title(255)
-    string thumbnail_url(512)
+    string youtube_video_id
+    %% CHAR(11)
+    string title
+    %% VARCHAR(255)
+    string thumbnail_url
+    %% VARCHAR(512)
     int search_history_id FK
   }
 
   PLACES {
     int id PK
-    string name(100)
-    string address(255)
+    string name
+    %% VARCHAR(100)
+    string address
+    %% VARCHAR(255)
     float latitude
     float longitude
-    string place_id(100)
-    text opening_hours
+    string place_id
+    %% VARCHAR(100)
+    string opening_hours
+    %% TEXT
     int video_id FK
   }
 
@@ -91,12 +104,14 @@ erDiagram
     int place_id FK
     int video_id FK
     datetime added_at
+    %% UNIQUE(user_id, place_id)
   }
 
   TRAVEL_PLANS {
     int id PK
     int user_id FK
-    string name(100)
+    string name
+    %% VARCHAR(100)
   }
 
   TRAVEL_PLAN_ITEMS {
@@ -120,6 +135,7 @@ erDiagram
   TRAVEL_PLAN_ITEMS }o--|| PLACES : includes
   WISHLISTS }o--|| PLACES : includes
 ```
+
 ### 制約
 - WISHLISTS: `UNIQUE(user_id, place_id)` により、同じ場所を同じユーザーが複数登録できない
 
