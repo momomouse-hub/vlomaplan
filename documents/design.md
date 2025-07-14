@@ -48,39 +48,39 @@ erDiagram
   USER_CREDENTIALS {
     int id PK
     int user_id FK,UNIQUE
-    string(255) email UNIQUE
-    string(60) encrypted_password
+    string email(255) UNIQUE
+    string encrypted_password(60)
   }
 
   USER_VISITS {
     int id PK
     int user_id FK,UNIQUE
-    string(36) token UNIQUE
+    string token(36) UNIQUE
     datetime created_at
   }
 
   SEARCH_HISTORIES {
     int id PK
     int user_id FK
-    string(100) keyword
+    string keyword(100)
     datetime created_at
   }
 
   VIDEOS {
     int id PK
-    string(11) youtube_video_id
-    string(255) title
-    string(512) thumbnail_url
+    string youtube_video_id(11)
+    string title(255)
+    string thumbnail_url(512)
     int search_history_id FK
   }
 
   PLACES {
     int id PK
-    string(100) name
-    string(255) address
+    string name(100)
+    string address(255)
     float latitude
     float longitude
-    string(100) place_id
+    string place_id(100)
     text opening_hours
     int video_id FK
   }
@@ -96,7 +96,7 @@ erDiagram
   TRAVEL_PLANS {
     int id PK
     int user_id FK
-    string(100) name
+    string name(100)
   }
 
   TRAVEL_PLAN_ITEMS {
