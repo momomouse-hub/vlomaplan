@@ -47,41 +47,41 @@ erDiagram
 
   USER_CREDENTIALS {
     int id PK
-    int user_id FK
-    string email
-    string encrypted_password
+    int user_id FK UNIQUE
+    string email(255) UNIQUE
+    string encrypted_password(60)
   }
 
   USER_VISITS {
     int id PK
-    int user_id FK
-    string token
+    int user_id FK UNIQUE
+    string token(36) UNIQUE
     datetime created_at
   }
 
   SEARCH_HISTORIES {
     int id PK
     int user_id FK
-    string keyword
+    string keyword(100)
     datetime created_at
   }
 
   VIDEOS {
     int id PK
-    string youtube_video_id
-    string title
-    string thumbnail_url
+    string youtube_video_id(11)
+    string title(255)
+    string thumbnail_url(512)
     int search_history_id FK
   }
 
   PLACES {
     int id PK
-    string name
-    string address
+    string name(100)
+    string address(255)
     float latitude
     float longitude
-    string place_id
-    string opening_hours
+    string place_id(100)
+    text opening_hours
     int video_id FK
   }
 
@@ -91,19 +91,20 @@ erDiagram
     int place_id FK
     int video_id FK
     datetime added_at
+    UNIQUE user_id, place_id
   }
 
   TRAVEL_PLANS {
     int id PK
     int user_id FK
-    string name
+    string name(100)
   }
 
   TRAVEL_PLAN_ITEMS {
     int id PK
     int travel_plan_id FK
     int place_id FK
-    int order
+    int sort_order
   }
 
   USERS ||--o| USER_CREDENTIALS : has
