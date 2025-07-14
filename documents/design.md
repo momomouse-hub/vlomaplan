@@ -91,7 +91,6 @@ erDiagram
     int place_id FK
     int video_id FK
     datetime added_at
-    UNIQUE user_id, place_id
   }
 
   TRAVEL_PLANS {
@@ -121,6 +120,9 @@ erDiagram
   TRAVEL_PLAN_ITEMS }o--|| PLACES : includes
   WISHLISTS }o--|| PLACES : includes
 ```
+### 制約
+- WISHLISTS: `UNIQUE(user_id, place_id)` により、同じ場所を同じユーザーが複数登録できない
+
 
 
 ## システム構成図
