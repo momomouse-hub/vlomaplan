@@ -66,7 +66,7 @@ erDiagram
     datetime created_at "検索日時"
   }
 
-  VIDEOS {
+  VIDEO_VIEWS {
     int id PK "ID（主キー）"
     string youtube_video_id "YouTube動画ID（CHAR(11)）"
     string title "動画タイトル（VARCHAR(255)）"
@@ -76,21 +76,28 @@ erDiagram
 
   PLACES {
     int id PK "ID（主キー）"
-    string name "施設名（VARCHAR(100)）"
+    string name "施設名（VARCHAR(255)）"
     string address "住所（VARCHAR(255)）"
     float latitude "緯度"
     float longitude "経度"
     string place_id "Google MapsのPlace ID（VARCHAR(100)）"
-    string opening_hours "営業時間（TEXT）"
-    int video_id FK "関連動画ID（外部キー: VIDEOS.id）"
+    int video_view_id FK "関連動画ID（外部キー: VIDEO_VIEWS.id）"
+  }
+
+  PLACE_OPENING_HOURS {
+    int id PK "ID（主キー）"
+    int place_id FK "場所ID（外部キー: PLACES.id）"
+    int weekday "曜日（0:日曜~6:土曜）"
+    time open_time "営業開始時刻（例: 09:00:00）"
+    time close_time "営業終了時刻（例: 18:00:00）"
+    boolean is_closed "定休日フラグ"
   }
 
   WISHLISTS {
     int id PK "ID（主キー）"
     int user_id FK "ユーザーID（外部キー: USERS.id）"
     int place_id FK "場所ID（外部キー: PLACES.id）"
-    int video_id FK "動画ID（外部キー: VIDEOS.id）"
-    datetime added_at "追加日時"
+    datetime created_at "作成日時"
   }
 
   TRAVEL_PLANS {
@@ -112,9 +119,13 @@ erDiagram
   USERS ||--o{ WISHLISTS : has
   USERS ||--o{ TRAVEL_PLANS : has
 
-  SEARCH_HISTORIES ||--o{ VIDEOS : has
-  VIDEOS ||--o{ PLACES : suggests
-  VIDEOS ||--o{ WISHLISTS : source_of
+  SEARCH_HISTORIES ||--o{ VIDEO_VIEWS : has
+
+  VIDEO_VIEWS ||--o{ PLACES : suggests
+
+  PLACES ||--o{ WISHLISTS : is_wishlisted_in
+  PLACES ||--o{ PLACE_OPENING_HOURS : has_hours_for
+  PLACES ||--o{ TRAVEL_PLAN_ITEMS : included_in
 
   TRAVEL_PLANS ||--o{ TRAVEL_PLAN_ITEMS : has
   TRAVEL_PLAN_ITEMS }o--|| PLACES : includes
@@ -123,7 +134,12 @@ erDiagram
 
 
 ### 制約
-- WISHLISTS: `UNIQUE(user_id, place_id)` により、同じ場所を同じユーザーが複数登録できない
+- WISHLISTS: UNIQUE(user_id, place_id)
+- PLACE_OPENING_HOURS: UNIQUE(place_id, weekday)
+- 基本的に全カラムは NOT NULL
+  - 例外:
+    - PLACES.video_id は任意の関連のため NULL 許容
+    - PLACE_OPENING_HOURS.open_time / close_time は is_closed = true のときのみ NULL 可（通常は必須）
 
 
 
