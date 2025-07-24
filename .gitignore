@@ -1,0 +1,16 @@
+.DS_Store
+.vscode/
+*~
+.env
+.env.*
+log/*
+tmp/*
+!/log/.keep
+!/tmp/.keep
+.bundle/
+vendor/bundle
+config/master.key
+config/credentials.yml.enc
+config/*.key
+config/*.enc
+node_modules/
