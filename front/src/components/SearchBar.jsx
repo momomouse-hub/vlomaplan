@@ -1,15 +1,17 @@
-import { useState } from "react";
+import { useState } from "react"
+import { useNavigate } from "react-router-dom";
 
-const SearchForm = ({onSearch}) => {
+const SearchBar = ({ onSearch }) => {
   const [keyword, setKeyword] = useState("");
+  const navigate = useNavigate();
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (keyword.trim()){
-      const modifiedKeyword = `${keyword.trim()} Vlog`
-      onSearch(modifiedKeyword);
+    if (keyword.trim()) {
+      const modifiedKeyword = `${keyword.trim()} Vlog`;
+      navigate(`/search?q=${encodeURIComponent(modifiedKeyword)}`);
     }
-  }
+  };
 
   return (
     <form onSubmit={handleSubmit}>
@@ -21,7 +23,7 @@ const SearchForm = ({onSearch}) => {
       />
       <button type="submit">検索</button>
     </form>
-  )
-}
+  );
+};
 
-export default SearchForm;
+export default SearchBar;
