@@ -1,13 +1,19 @@
-import './App.css';
-import SearchApp from './components/SearchApp';
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import "./App.css";
+import Header from "./components/Header";
+import Homepage from "./pages/HomePage";
+import SearchResultPage from "./pages/SearchResultPage";
 
-function App() {
+const App = () => {
   return (
-    <div>
-      <h1>VloMaPlan</h1>
-      <SearchApp />
-    </div>
-  )
-}
+    <Router>
+      <Header />
+      <Routes>
+        <Route path="/" element={<Homepage />} />
+        <Route path="/search" element={<SearchResultPage />} />
+      </Routes>
+    </Router>
+  );
+};
 
 export default App;
