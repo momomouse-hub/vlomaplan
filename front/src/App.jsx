@@ -1,12 +1,13 @@
-import TestFetch from "./components/TestFetch";
+import './App.css';
+import SearchApp from './components/SearchApp';
 
-const App = () => {
+function App() {
   return (
     <div>
       <h1>VloMaPlan</h1>
-      <TestFetch />
+      <SearchApp />
     </div>
-  );
-};
+  )
+}
 
 export default App;
