@@ -7,25 +7,23 @@ import { Sheet } from "react-modal-sheet";
 import MapSearchBar from "../MapSearchBar";
 import PlaceAutocomplete from "../PlaceAutocomplete";
 
-const MobileLayout = ({ id, relatedVideos, channels }) => {
+const MobileLayout = ({ id, relatedVideos, channels, currentVideo }) => {
   const navigate = useNavigate();
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [isMapOpen, setIsMapOpen] = useState(false);
   const [position, setPosition] = useState({ lat: 35.681236, lng: 139.767125 });
   const [placeName, setPlaceName] = useState("");
   const [isDraggingMap, setIsDraggingMap] = useState(false);
+  const [selectedPlace, setSelectedPlace] = useState(null);
 
-  const handleSelectPlace = (place) => {
-    const lat = typeof place.location?.lat === "function" ? place.location.lat() : place.location?.lat;
-    const lng = typeof place.location?.lng === "function" ? place.location.lng() : place.location?.lng;
-
-    if (typeof lat !== "number" || typeof lng !== "number") {
-      console.warn("Invalid lat/lng:", lat, lng);
+  const handleSelectPlace = (p) => {
+    if (typeof p.latitude !== "number" || typeof p.longitude !== "number") {
+      console.warn("Invalid lat/lng:", p);
       return;
     }
-
-    setPlaceName(place.displayName || "選択した場所");
-    setPosition({ lat, lng });
+    setSelectedPlace(p);
+    setPlaceName(p.name || "選択した場所");
+    setPosition({ lat: p.latitude, lng: p.longitude });
     setIsMapOpen(true);
   };
 
@@ -84,6 +82,8 @@ const MobileLayout = ({ id, relatedVideos, channels }) => {
                   key={`${position.lat}-${position.lng}`}
                   position={position}
                   placeName={placeName}
+                  selectedPlace={selectedPlace}
+                  currentVideo={currentVideo}
                 />
               </div>
             )}

@@ -1,12 +1,15 @@
+import { createBookmark } from "../api/bookmarks";
 import { Map } from "@vis.gl/react-google-maps";
 import { useState } from "react";
 import MapPopup from "./MapPopup";
 import CustomMarker from "./CustomMarker";
 
-const MapPreview = ({ position, placeName }) => {
+const MapPreview = ({ position, placeName, selectedPlace, currentVideo }) => {
   const [isPopupOpen, setIsPopupOpen] = useState(false);
   const [isFavorite, setIsFavorite] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
+  const [isPosting, setIsPosting] = useState(false);
+
   return (
     <div style={{ height: "400px", width: "100%", position: "relative" }}>
       <div
@@ -92,11 +95,24 @@ const MapPreview = ({ position, placeName }) => {
             <MapPopup
               title={placeName}
               message={"行きたい場所リストに追加しますか？"}
-              confirmLabel="追加する"
+              confirmLabel={isPosting? "保存中..." : "追加する"}
               cancelLabel="キャンセル"
-              onConfirm={() => {
-                setIsFavorite(true);
-                setIsPopupOpen(false);
+              onConfirm={async () => {
+                if (!selectedPlace || !currentVideo || isPosting) return;
+                try {
+                  setIsPosting(true);
+                  await createBookmark({
+                    video: currentVideo,
+                    place: selectedPlace,
+                  });
+                  setIsFavorite(true);
+                  setIsPopupOpen(false);
+                } catch (e) {
+                  console.error(e);
+                  alert("保存に失敗しました。");
+                } finally {
+                  setIsPosting(false);
+                }
               }}
               onCancel={() => setIsPopupOpen(false)}
             />
