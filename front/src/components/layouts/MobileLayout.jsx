@@ -13,6 +13,8 @@ const MobileLayout = ({ id, relatedVideos, channels }) => {
   const [isMapOpen, setIsMapOpen] = useState(false);
   const [position, setPosition] = useState({ lat: 35.681236, lng: 139.767125 });
 
+  const [isDraggingMap, setIsDraggingMap] = useState(false);
+
   const handleSelectPlace = (place) => {
     const lat = typeof place.location?.lat === "function" ? place.location.lat() : place.location?.lat;
     const lng = typeof place.location?.lng === "function" ? place.location.lng() : place.location?.lng;
@@ -69,8 +71,20 @@ const MobileLayout = ({ id, relatedVideos, channels }) => {
           <Sheet.Header>
             <PlaceAutocomplete onPlaceSelect={handleSelectPlace} />
           </Sheet.Header>
-          <Sheet.Content>
-            {isMapOpen && <MapPreview position={position} />}
+          <Sheet.Content disableDrag={isDraggingMap}>
+            {isMapOpen && (
+              <div
+                onTouchStart={() => setIsDraggingMap(true)}
+                onTouchEnd={() => setIsDraggingMap(false)}
+                onMouseEnter={() => setIsDraggingMap(true)}
+                onMouseLeave={() => setIsDraggingMap(false)}
+              >
+                <MapPreview
+                  key={`${position.lat}-${position.lng}`}
+                  position={position}
+                />
+              </div>
+            )}
           </Sheet.Content>
         </Sheet.Container>
         <Sheet.Backdrop onTap={() => setIsSheetOpen(false)} />
