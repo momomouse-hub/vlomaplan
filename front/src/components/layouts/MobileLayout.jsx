@@ -12,7 +12,7 @@ const MobileLayout = ({ id, relatedVideos, channels }) => {
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [isMapOpen, setIsMapOpen] = useState(false);
   const [position, setPosition] = useState({ lat: 35.681236, lng: 139.767125 });
-
+  const [placeName, setPlaceName] = useState("");
   const [isDraggingMap, setIsDraggingMap] = useState(false);
 
   const handleSelectPlace = (place) => {
@@ -24,6 +24,7 @@ const MobileLayout = ({ id, relatedVideos, channels }) => {
       return;
     }
 
+    setPlaceName(place.displayName || "選択した場所");
     setPosition({ lat, lng });
     setIsMapOpen(true);
   };
@@ -82,6 +83,7 @@ const MobileLayout = ({ id, relatedVideos, channels }) => {
                 <MapPreview
                   key={`${position.lat}-${position.lng}`}
                   position={position}
+                  placeName={placeName}
                 />
               </div>
             )}
