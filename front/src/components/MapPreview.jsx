@@ -1,13 +1,70 @@
-import { Map, AdvancedMarker, Pin } from "@vis.gl/react-google-maps";
-import { useRef, useState } from "react";
+import { Map } from "@vis.gl/react-google-maps";
+import { useState } from "react";
 import MapPopup from "./MapPopup";
+import CustomMarker from "./CustomMarker";
 
 const MapPreview = ({ position, placeName }) => {
   const [isPopupOpen, setIsPopupOpen] = useState(false);
-  const markerRef = useRef(null);
-
+  const [isFavorite, setIsFavorite] = useState(false);
+  const [isSaved, setIsSaved] = useState(false);
   return (
-    <div style={{ height: "400px", width: "100%" }}>
+    <div style={{ height: "400px", width: "100%", position: "relative" }}>
+      <div
+        style={{
+          position: "absolute",
+          top: "16px",
+          right: "16px",
+          display: "flex",
+          flexDirection: "column",
+          gap: "12px",
+          zIndex: 1100,
+        }}
+      >
+        <button
+          onClick={() => alert("お気に入りリストを開く")}
+          style={{
+            backgroundColor: "white",
+            border: "2px solid #2CA478",
+            borderRadius: "50%",
+            padding: "12px",
+            cursor: "pointer",
+            width: "48px",
+            height: "48px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <img
+            src={isFavorite ? "/filledheart.svg" : "/heart.svg"}
+            alt="お気に入り"
+            style={{ width: "32px", height: "32px" }}
+          />
+        </button>
+
+        <button
+          onClick={() => alert("保存リストを開く")}
+          style={{
+            backgroundColor: "white",
+            border: "2px solid #2CA478",
+            borderRadius: "50%",
+            padding: "12px",
+            cursor: "pointer",
+            width: "48px",
+            height: "48px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <img
+            src={isSaved ? "/filledluggage.svg" : "/luggage.svg"}
+            alt="保存リスト"
+            style={{ width: "32px", height: "32px" }}
+          />
+        </button>
+      </div>
+
       <Map
         defaultCenter={position}
         defaultZoom={14}
@@ -16,18 +73,11 @@ const MapPreview = ({ position, placeName }) => {
         style={{ height: "100%", width: "100%" }}
         onClick={() => setIsPopupOpen(false)}
       >
-        <AdvancedMarker
+        <CustomMarker
           position={position}
-          ref={markerRef}
+          isFavorite={isFavorite}
           onClick={() => setIsPopupOpen(!isPopupOpen)}
-        >
-          <Pin
-            background={"#397e3bff"}
-            glyphColor={"#FFFFFF"}
-            borderColor={"#397e3bff"}
-            glyph={"+"}
-          />
-        </AdvancedMarker>
+        />
 
         {isPopupOpen && (
           <div
@@ -45,7 +95,7 @@ const MapPreview = ({ position, placeName }) => {
               confirmLabel="追加する"
               cancelLabel="キャンセル"
               onConfirm={() => {
-                alert("追加しました！");
+                setIsFavorite(true);
                 setIsPopupOpen(false);
               }}
               onCancel={() => setIsPopupOpen(false)}
