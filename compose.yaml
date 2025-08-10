@@ -12,7 +12,6 @@ services:
       - db
     environment:
       RAILS_ENV: development
-      DATABASE_URL: ${DATABASE_URL}
     stdin_open: true
     tty: true
     env_file:
@@ -34,6 +33,7 @@ services:
       - 4306:3306
     volumes:
       - mysql-data:/var/lib/mysql
+      - ./mysql/conf.d/my.cnf:/etc/mysql/conf.d/my.cnf
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       MYSQL_DATABASE: ${MYSQL_DATABASE}
