@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { useMapsLibrary } from "@vis.gl/react-google-maps";
 
-export function useAutocompleteSuggestions(inputValue) {
+export function useAutocompleteSuggestions(searchValue) {
   const placesLib = useMapsLibrary("places");
   const sessionTokenRef = useRef(null);
   const [suggestions, setSuggestions] = useState([]);
 
   useEffect(() => {
-    if (!placesLib) return;
+    if (!placesLib || !searchValue) return;
 
     const { AutocompleteSessionToken, AutocompleteSuggestion } = placesLib;
 
@@ -15,20 +15,20 @@ export function useAutocompleteSuggestions(inputValue) {
       sessionTokenRef.current = new AutocompleteSessionToken();
     }
 
-    if (!inputValue) {
+    if (!searchValue) {
       setSuggestions([]);
       return;
     }
 
     const request = {
-      input: inputValue,
+      input: searchValue,
       sessionToken: sessionTokenRef.current,
     };
 
     AutocompleteSuggestion.fetchAutocompleteSuggestions(request).then((res) => {
       setSuggestions(res.suggestions);
     });
-  }, [inputValue, placesLib]);
+  }, [searchValue, placesLib]);
 
   return {
     suggestions,
