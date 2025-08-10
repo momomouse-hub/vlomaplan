@@ -32,7 +32,7 @@ const PlaceAutocomplete = ({ onPlaceSelect }) => {
 
     const place = suggestion.placePrediction.toPlace();
     await place.fetchFields({
-      fields: ["displayName", "formattedAddress", "location", "viewport"],
+      fields: ["id", "displayName", "formattedAddress", "location", "viewport"],
     });
 
     console.log("[選択されたPlaceの内容]", place);
@@ -40,7 +40,15 @@ const PlaceAutocomplete = ({ onPlaceSelect }) => {
     resetSession();
     setInputValue("");
     setSearchValue("");
-    onPlaceSelect(place);
+    const lat = typeof place.location?.lat === "function" ? place.location.lat() : place.location?.lat;
+    const lng = typeof place.location?.lng === "function" ? place.location.lng() : place.location?.lng;
+    onPlaceSelect({
+      place_id: place.id,
+      name: place.displayName,
+      address: place.formattedAddress,
+      latitude: lat,
+      longitude: lng,
+    });
   }, [onPlaceSelect, resetSession]);
 
   return (

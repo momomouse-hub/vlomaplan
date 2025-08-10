@@ -11,6 +11,7 @@ const VideoDetailPage = () => {
 
   const [relatedVideos, setRelatedVideos] = useState([]);
   const [channels, setChannels] = useState([]);
+  const [currentVideo, setCurrentVideo] = useState(null);
   const position = { lat: 35.681236, lng: 139.767125 };
 
   useEffect(() => {
@@ -24,6 +25,8 @@ const VideoDetailPage = () => {
       const parsed = JSON.parse(cachedData);
       setRelatedVideos(parsed.videos.filter((v) => v.id !== id));
       setChannels(parsed.channels || []);
+      const me = parsed.videos.find((v) => v.id === id);
+      if (me) setCurrentVideo(me);
     }
   }, [id]);
 
@@ -38,13 +41,15 @@ const VideoDetailPage = () => {
           relatedVideos={relatedVideos}
           channels={channels}
           position={position}
+          currentVideo={currentVideo}
         />
       ) : (
         <DesktopLayout
           id={id}
           relatedVideos={relatedVideos}
           channels={channels}
-          position={position}
+            position={position}
+            currentVideo={currentVideo}
         />
       )}
     </APIProvider>
