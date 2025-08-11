@@ -5,6 +5,7 @@ const MapPopup = ({
   onCancel,
   confirmLabel = "追加する",
   cancelLabel = "キャンセル",
+  confirmDisabled = false,
 }) => {
   return (
     <div
@@ -34,6 +35,7 @@ const MapPopup = ({
         <p style={{ fontSize: "14px", margin: "0 0 16px" }}>{message}</p>
 
         <button
+          disabled={confirmDisabled}
           style={{
             backgroundColor: "#2ca478",
             color: "white",
@@ -43,6 +45,8 @@ const MapPopup = ({
             fontSize: "14px",
             cursor: "pointer",
             marginBottom: "12px",
+            opacity: confirmDisabled ? 0.6 : 1,
+            pointerEvents: confirmDisabled ? "none": "auto",
           }}
           onClick={onConfirm}
         >
