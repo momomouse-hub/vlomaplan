@@ -4,6 +4,7 @@ Rails.application.routes.draw do
       collection do
         get :exists
         get :total_count
+        get :place_status
       end
     end
   end

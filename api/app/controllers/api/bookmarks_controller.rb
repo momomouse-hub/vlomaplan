@@ -45,6 +45,13 @@ class Api::BookmarksController < ApplicationController
     render json: { total_count: total }
   end
 
+  def place_status
+    pid = params.require(:place_id)
+    place = Place.find_by(place_id: pid)
+    cnt = place ? place.video_view_places.count : 0
+    render json: { saved: cnt > 0, count: cnt }
+  end
+
   private
   def vv_params
     params.require(:video_view).permit(:youtube_video_id, :title, :thumbnail_url, :search_history_id)

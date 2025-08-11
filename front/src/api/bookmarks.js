@@ -24,3 +24,11 @@ export async function totalCountBookmarks() {
   if (!res.ok) throw new Error("totalCountBookmarks failed");
   return res.json();
 }
+
+export async function placeStatus({ place_id }) {
+  const url = new URL(`${base}/api/bookmarks/place_status`);
+  url.searchParams.set('place_id', place_id);
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`placeStatus failed: ${res.status}`);
+  return res.json();
+}
