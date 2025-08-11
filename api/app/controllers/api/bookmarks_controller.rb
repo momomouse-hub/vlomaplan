@@ -18,7 +18,7 @@ class Api::BookmarksController < ApplicationController
       )
       place.save!
 
-      VideoViewPlace.find_or_create_by!(video_view: vv, place: place)
+      VideoViewPlace.create_or_find_by!(video_view: vv, place: place)
 
       render json: {
         video_view: { id: vv.id, youtube_video_id: vv.youtube_video_id },
@@ -28,6 +28,28 @@ class Api::BookmarksController < ApplicationController
     end
   rescue ActiveRecord::RecordInvalid => e
     render json: { error: e.record.errors.full_messages }, status: :unprocessable_entity
+  end
+
+  def exists
+    youtube_id = params.require(:youtube_video_id)
+    place_id = params.require(:place_id)
+
+    vv = VideoView.find_by(youtube_video_id: youtube_id)
+    place = Place.find_by(place_id: place_id)
+    present = vv && place && VideoViewPlace.exists?(video_view_id: vv.id, place_id: place.id)
+    render json: { exists: !!present }
+  end
+
+  def total_count
+    total = VideoViewPlace.count
+    render json: { total_count: total }
+  end
+
+  def place_status
+    pid = params.require(:place_id)
+    place = Place.find_by(place_id: pid)
+    cnt = place ? place.video_view_places.count : 0
+    render json: { saved: cnt > 0, count: cnt }
   end
 
   private

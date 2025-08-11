@@ -17,13 +17,15 @@ const MobileLayout = ({ id, relatedVideos, channels, currentVideo }) => {
   const [selectedPlace, setSelectedPlace] = useState(null);
 
   const handleSelectPlace = (p) => {
-    if (typeof p.latitude !== "number" || typeof p.longitude !== "number") {
-      console.warn("Invalid lat/lng:", p);
+    const lat = Number(p.latitude);
+    const lng = Number(p.longitude);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+      console.warn("Invalid lat/lng:", lat, lng);
       return;
     }
     setSelectedPlace(p);
     setPlaceName(p.name || "選択した場所");
-    setPosition({ lat: p.latitude, lng: p.longitude });
+    setPosition({ lat, lng });
     setIsMapOpen(true);
   };
 

@@ -35,8 +35,6 @@ const PlaceAutocomplete = ({ onPlaceSelect }) => {
       fields: ["id", "displayName", "formattedAddress", "location", "viewport"],
     });
 
-    console.log("[選択されたPlaceの内容]", place);
-
     resetSession();
     setInputValue("");
     setSearchValue("");

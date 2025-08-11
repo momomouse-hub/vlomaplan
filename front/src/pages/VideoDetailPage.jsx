@@ -23,10 +23,10 @@ const VideoDetailPage = () => {
 
     if (cachedData) {
       const parsed = JSON.parse(cachedData);
+      const cur = (parsed.videos || []).find(v => v.id === id) || null;
+      setCurrentVideo(cur);
       setRelatedVideos(parsed.videos.filter((v) => v.id !== id));
       setChannels(parsed.channels || []);
-      const me = parsed.videos.find((v) => v.id === id);
-      if (me) setCurrentVideo(me);
     }
   }, [id]);
 
@@ -38,10 +38,10 @@ const VideoDetailPage = () => {
       {isMobile ? (
         <MobileLayout
           id={id}
+          currentVideo={currentVideo}
           relatedVideos={relatedVideos}
           channels={channels}
           position={position}
-          currentVideo={currentVideo}
         />
       ) : (
         <DesktopLayout

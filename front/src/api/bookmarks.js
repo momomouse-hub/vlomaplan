@@ -1,28 +1,34 @@
-export async function createBookmark({ video, place}) {
-  const base = import.meta.env.VITE_API_BASE_URL;
+const base = import.meta.env.VITE_API_BASE_URL || '';
+
+export async function createBookmark(payload) {
   const res = await fetch(`${base}/api/bookmarks`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      video_view: {
-        youtube_video_id: video.id,
-        title: video.title,
-        thumbnail_url: video.thumbnail,
-        search_history_id: null
-      },
-      place: {
-        place_id: place.place_id,
-        name: place.name,
-        address: place.address,
-        latitude: place.latitude,
-        longitude: place.longitude
-      }
-    })
+    body: JSON.stringify(payload),
   });
+  if (!res.ok) throw new Error(`create failed: ${res.status}`);
+  return res.json();
+}
 
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(text || `HTTP ${res.status}`);
-  }
+export async function existsBookmark({ youtube_video_id, place_id }) {
+  const url = new URL(`${base}/api/bookmarks/exists`);
+  url.searchParams.set('youtube_video_id', youtube_video_id);
+  url.searchParams.set('place_id', place_id);
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`exists failed: ${res.status}`);
+  return res.json();
+}
+
+export async function totalCountBookmarks() {
+  const res = await fetch(`${base}/api/bookmarks/total_count`);
+  if (!res.ok) throw new Error("totalCountBookmarks failed");
+  return res.json();
+}
+
+export async function placeStatus({ place_id }) {
+  const url = new URL(`${base}/api/bookmarks/place_status`);
+  url.searchParams.set('place_id', place_id);
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`placeStatus failed: ${res.status}`);
   return res.json();
 }
