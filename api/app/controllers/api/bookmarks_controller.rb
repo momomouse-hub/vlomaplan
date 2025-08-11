@@ -40,11 +40,9 @@ class Api::BookmarksController < ApplicationController
     render json: { exists: !!present }
   end
 
-  def count
-    youtube_id = params.require(:youtube_video_id)
-    vv = VideoView.find_by(youtube_video_id: youtube_id)
-    cnt = vv ? vv.video_view_places.count : 0
-    render json: { count: cnt }
+  def total_count
+    total = VideoViewPlace.count
+    render json: { total_count: total }
   end
 
   private

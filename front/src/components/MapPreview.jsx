@@ -2,15 +2,15 @@ import { useEffect, useState } from "react";
 import { Map } from "@vis.gl/react-google-maps";
 import MapPopup from "./MapPopup";
 import CustomMarker from "./CustomMarker";
-import { createBookmark, existsBookmark, countBookmarks } from "../api/bookmarks";
+import { createBookmark, existsBookmark, totalCountBookmarks } from "../api/bookmarks";
 
 const MapPreview = ({ position, placeName, selectedPlace, currentVideo }) => {
   const [isPopupOpen, setIsPopupOpen] = useState(false);
   const [isFavorite, setIsFavorite] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [favCount, setFavCount] = useState(0);
-  const hasAnyFavorites = favCount > 0;
+  const [totalFavCount, setTotalFavCount] = useState(0);
+  const hasAnyFavorites = totalFavCount > 0;
 
   useEffect(() => {
     const youtubeId = currentVideo?.id;
@@ -19,17 +19,24 @@ const MapPreview = ({ position, placeName, selectedPlace, currentVideo }) => {
 
     (async () => {
       try {
-        const [exRes, cntRes] = await Promise.all([
-          existsBookmark({ youtube_video_id: youtubeId, place_id: placeId }),
-          countBookmarks({ youtube_video_id: youtubeId }),
-        ]);
+        const exRes = await existsBookmark({ youtube_video_id: youtubeId, place_id: placeId });
         setIsFavorite(Boolean(exRes?.exists));
-        setFavCount(Number(cntRes?.count || 0));
       } catch (e) {
-        console.warn("init favorite state failed:", e);
+        console.warn("exists init failed:", e);
       }
     })();
   }, [currentVideo?.id, selectedPlace?.place_id]);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const { total_count } = await totalCountBookmarks();
+        setTotalFavCount(Number(total_count || 0));
+      } catch (e) {
+        console.warn("total_count init failed:", e);
+      }
+    })();
+  }, []);
 
   return (
     <div style={{ height: "400px", width: "100%", position: "relative" }}>
@@ -83,7 +90,7 @@ const MapPreview = ({ position, placeName, selectedPlace, currentVideo }) => {
               padding: "0 4px",
             }}
             >
-              {favCount}
+              {totalFavCount}
             </span>
           )}
         </button>
@@ -163,7 +170,7 @@ const MapPreview = ({ position, placeName, selectedPlace, currentVideo }) => {
                     },
                   });
                   setIsFavorite(true);
-                  setFavCount((c) => c + 1);
+                  setTotalFavCount((c) => c + 1);
                   setIsPopupOpen(false);
                 } catch (e) {
                   console.error(e);

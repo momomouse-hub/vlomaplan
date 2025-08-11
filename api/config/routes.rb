@@ -3,7 +3,7 @@ Rails.application.routes.draw do
     resources :bookmarks, only: [:create] do
       collection do
         get :exists
-        get :count
+        get :total_count
       end
     end
   end
