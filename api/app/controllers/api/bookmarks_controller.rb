@@ -48,8 +48,19 @@ class Api::BookmarksController < ApplicationController
   def place_status
     pid = params.require(:place_id)
     place = Place.find_by(place_id: pid)
-    cnt = place ? place.video_view_places.count : 0
-    render json: { saved: cnt > 0, count: cnt }
+
+    count = place ? place.video_view_places.count : 0
+
+    thumb = nil
+    if place && count > 0
+      vvp = place.video_view_places
+                .includes(:video_view)
+                .order(created_at: :desc)
+                .first
+      thumb = vvp&.video_view&.thumbnail_url
+    end
+
+    render json: { saved: count > 0, count: count, thumbnail_url: thumb }
   end
 
   private

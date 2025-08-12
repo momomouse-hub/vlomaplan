@@ -1,17 +1,57 @@
-import { useEffect, useState } from "react";
-import { Map } from "@vis.gl/react-google-maps";
-import MapPopup from "./MapPopup";
+import { useEffect, useRef, useState } from "react";
+import { useMap, Map } from "@vis.gl/react-google-maps";
 import CustomMarker from "./CustomMarker";
+import MapPopup from "./MapPopup";
+import PlaceDetailCard from "./PlaceDetailCard";
 import { createBookmark, placeStatus, totalCountBookmarks } from "../api/bookmarks";
 
-const MapPreview = ({ position, placeName, selectedPlace, currentVideo }) => {
+const MapPreview = ({
+  position,
+  placeName,
+  selectedPlace,
+  currentVideo,
+  onRequestExpand,
+  mapHeight,
+}) => {
   const [isPopupOpen, setIsPopupOpen] = useState(false);
-  // const [isFavorite, setIsFavorite] = useState(false);
+  const [showDetail, setShowDetail] = useState(false);
+
   const [isSavedGlobally, setIsSavedGlobally] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [totalFavCount, setTotalFavCount] = useState(0);
+
   const [isSaved, setIsSaved] = useState(false);
+
   const hasAnyFavorites = totalFavCount > 0;
+
+  const map = useMap();
+  const prevH = useRef(mapHeight);
+
+  const [placeThumbUrl, setPlaceThumbUrl] = useState(null);
+
+  useEffect(() => {
+    if (!selectedPlace?.place_id) return;
+    (async () => {
+      try {
+        const res = await placeStatus({ place_id: selectedPlace.place_id });
+        setPlaceThumbUrl(res.thumbnail_url || null);
+      } catch (e) {
+        console.error("place_status failed", e);
+        setPlaceThumbUrl(null);
+      }
+    })();
+  }, [selectedPlace?.place_id]);
+
+  useEffect(() => {
+    if (!map) return;
+    const oldH = prevH.current;
+    const newH = mapHeight;
+    if (typeof oldH === "number" && typeof newH === "number" && oldH !== newH) {
+      const dy = (newH - oldH) / 2;
+      map.panBy(0, dy);
+    }
+    prevH.current = newH;
+  }, [mapHeight, map]);
 
   useEffect(() => {
     (async () => {
@@ -38,16 +78,53 @@ const MapPreview = ({ position, placeName, selectedPlace, currentVideo }) => {
     })();
   }, [selectedPlace?.place_id]);
 
+  useEffect(() => {
+    setIsPopupOpen(false);
+    setShowDetail(false);
+  }, [selectedPlace?.place_id, position.lat, position.lng]);
+
+  const handleAddFavorite = async () => {
+    if (!selectedPlace || !currentVideo || isSaving || isSavedGlobally) return;
+    try {
+      setIsSaving(true);
+      await createBookmark({
+        video_view: {
+          youtube_video_id: currentVideo.id,
+          title: currentVideo.title,
+          thumbnail_url: currentVideo.thumbnail,
+          search_history_id: null,
+        },
+        place: {
+          place_id: selectedPlace.place_id,
+          name: selectedPlace.name,
+          address: selectedPlace.address,
+          latitude: selectedPlace.latitude,
+          longitude: selectedPlace.longitude,
+        },
+      });
+      setIsSavedGlobally(true);
+      setTotalFavCount((c) => c + 1);
+      setIsPopupOpen(false);
+      setShowDetail(true);
+      onRequestExpand?.();
+    } catch (e) {
+      console.error(e);
+      alert("保存に失敗しました。通信状況をご確認ください。");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   return (
-    <div style={{ height: "400px", width: "100%", position: "relative" }}>
+    <div style={{ height: (mapHeight ?? 400) + "px", width: "100%", position: "relative" }}>
       <div
         style={{
           position: "absolute",
-          top: "16px",
-          right: "16px",
+          top: 16,
+          right: 16,
           display: "flex",
           flexDirection: "column",
-          gap: "12px",
+          gap: 12,
           zIndex: 1100,
         }}
       >
@@ -58,10 +135,10 @@ const MapPreview = ({ position, placeName, selectedPlace, currentVideo }) => {
             backgroundColor: "white",
             border: "2px solid #2CA478",
             borderRadius: "50%",
-            padding: "12px",
+            padding: 12,
             cursor: "pointer",
-            width: "48px",
-            height: "48px",
+            width: 48,
+            height: 48,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -70,25 +147,25 @@ const MapPreview = ({ position, placeName, selectedPlace, currentVideo }) => {
           <img
             src={hasAnyFavorites ? "/filledheart.svg" : "/heart.svg"}
             alt="いきたい場所リスト"
-            style={{ width: "32px", height: "32px" }}
+            style={{ width: 32, height: 32 }}
           />
           {hasAnyFavorites && (
             <span
-            style={{
-              position: "absolute",
-              top: "-6px",
-              right: "-6px",
-              minWidth: 18,
-              height: 18,
-              borderRadius: 9,
-              background: "#e02424",
-              color: "#fff",
-              fontSize: 12,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              padding: "0 4px",
-            }}
+              style={{
+                position: "absolute",
+                top: -6,
+                right: -6,
+                minWidth: 18,
+                height: 18,
+                borderRadius: 9,
+                background: "#e02424",
+                color: "#fff",
+                fontSize: 12,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                padding: "0 4px",
+              }}
             >
               {totalFavCount}
             </span>
@@ -101,20 +178,16 @@ const MapPreview = ({ position, placeName, selectedPlace, currentVideo }) => {
             backgroundColor: "white",
             border: "2px solid #2CA478",
             borderRadius: "50%",
-            padding: "12px",
+            padding: 12,
             cursor: "pointer",
-            width: "48px",
-            height: "48px",
+            width: 48,
+            height: 48,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
           }}
         >
-          <img
-            src={isSaved ? "/filledluggage.svg" : "/luggage.svg"}
-            alt="旅行プラン"
-            style={{ width: "32px", height: "32px" }}
-          />
+          <img src={isSaved ? "/filledluggage.svg" : "/luggage.svg"} alt="旅行プラン" style={{ width: 32, height: 32 }} />
         </button>
       </div>
 
@@ -124,15 +197,27 @@ const MapPreview = ({ position, placeName, selectedPlace, currentVideo }) => {
         options={{ disableDefaultUI: true }}
         mapId={import.meta.env.VITE_GOOGLE_MAP_ID}
         style={{ height: "100%", width: "100%" }}
-        onClick={() => setIsPopupOpen(false)}
+        onClick={() => {
+          setIsPopupOpen(false);
+          setShowDetail(false);
+        }}
       >
         <CustomMarker
           position={position}
           isFavorite={isSavedGlobally}
-          onClick={() => setIsPopupOpen((v) => !v)}
+          onClick={() => {
+            if (isSavedGlobally) {
+              setShowDetail(true);
+              setIsPopupOpen(false);
+              onRequestExpand?.();
+            } else {
+              setIsPopupOpen(true);
+              setShowDetail(false);
+            }
+          }}
         />
 
-        {isPopupOpen && (
+        {isPopupOpen && !isSavedGlobally && (
           <div
             style={{
               position: "absolute",
@@ -145,45 +230,28 @@ const MapPreview = ({ position, placeName, selectedPlace, currentVideo }) => {
             <MapPopup
               title={placeName}
               message={"行きたい場所リストに追加しますか？"}
-              confirmLabel={isSaving ? "保存中..." : isSavedGlobally ? "保存済み" : "追加する"}
+              confirmLabel={isSaving ? "保存中..." : "追加する"}
               cancelLabel="キャンセル"
-              confirmDisabled={
-                isSaving || isSavedGlobally || !currentVideo?.id || !selectedPlace?.place_id
-              }
-              onConfirm={async () => {
-                if (!selectedPlace || !currentVideo || isSaving || isSavedGlobally) return;
-                try {
-                  setIsSaving(true);
-                  await createBookmark({
-                    video_view: {
-                      youtube_video_id: currentVideo.id,
-                      title: currentVideo.title,
-                      thumbnail_url: currentVideo.thumbnail,
-                      search_history_id: null,
-                    },
-                    place: {
-                      place_id: selectedPlace.place_id,
-                      name: selectedPlace.name,
-                      address: selectedPlace.address,
-                      latitude: selectedPlace.latitude,
-                      longitude: selectedPlace.longitude,
-                    },
-                  });
-                  setIsSavedGlobally(true);
-                  setTotalFavCount((c) => c + 1);
-                  setIsPopupOpen(false);
-                } catch (e) {
-                  console.error(e);
-                  alert("保存に失敗しました。通信状況をご確認ください。");
-                } finally {
-                  setIsSaving(false);
-                }
-              }}
+              confirmDisabled={isSaving || !currentVideo?.id || !selectedPlace?.place_id}
+              onConfirm={handleAddFavorite}
               onCancel={() => setIsPopupOpen(false)}
             />
           </div>
         )}
       </Map>
+
+      {showDetail && isSavedGlobally && (
+        <PlaceDetailCard
+          place={selectedPlace}
+          thumbnailUrl={placeThumbUrl ?? currentVideo?.thumbnail ?? null}
+          isSaved
+          isSaving={isSaving}
+          onAdd={undefined}
+          onRemove={undefined}
+          onAddToPlan={() => alert("旅行プラン機能は準備中です")}
+          onClose={() => setShowDetail(false)}
+        />
+      )}
     </div>
   );
 };
