@@ -19,11 +19,12 @@ services:
 
   front:
     build: ./front
-    command: npm run dev
+    command: sh -c "npm ci && npm run dev -- --host 0.0.0.0"
     ports:
       - 5173:5173
     volumes:
       - ./front:/app
+      - /app/node_modules
     depends_on:
       - api
 
