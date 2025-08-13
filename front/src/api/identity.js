@@ -1,4 +1,4 @@
-import { apiFetch } from "./client";
+import { apiFetch, __setVisitorToken } from "./client";
 const base = import.meta.env.VITE_API_BASE_URL || "";
 
 export async function fetchIdentity() {
@@ -10,5 +10,7 @@ export async function fetchIdentity() {
 export async function ensureVisitor() {
   const existing = localStorage.getItem("visitor_token");
   if (existing) return { token: existing };
-  return fetchIdentity();
+  const data = await fetchIdentity();
+  if (data?.token) __setVisitorToken(data.token);
+  return data;
 }
