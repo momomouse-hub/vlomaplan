@@ -7,5 +7,6 @@ Rails.application.routes.draw do
         get :place_status
       end
     end
+    resource :identity, only: [:show]
   end
 end

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_08_13_142300) do
+ActiveRecord::Schema[8.0].define(version: 2025_08_13_143627) do
   create_table "places", charset: "utf8mb4", collation: "utf8mb4_0900_ai_ci", force: :cascade do |t|
     t.string "name", null: false
     t.string "address", null: false
@@ -20,6 +20,14 @@ ActiveRecord::Schema[8.0].define(version: 2025_08_13_142300) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["place_id"], name: "index_places_on_place_id", unique: true
+  end
+
+  create_table "user_visits", charset: "utf8mb4", collation: "utf8mb4_unicode_ci", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.string "token", limit: 36, null: false
+    t.datetime "created_at", null: false
+    t.index ["token"], name: "index_user_visits_on_token", unique: true
+    t.index ["user_id"], name: "index_user_visits_on_user_id", unique: true
   end
 
   create_table "users", charset: "utf8mb4", collation: "utf8mb4_unicode_ci", force: :cascade do |t|
@@ -47,6 +55,7 @@ ActiveRecord::Schema[8.0].define(version: 2025_08_13_142300) do
     t.index ["youtube_video_id"], name: "index_video_views_on_youtube_video_id", unique: true
   end
 
+  add_foreign_key "user_visits", "users"
   add_foreign_key "video_view_places", "places"
   add_foreign_key "video_view_places", "video_views"
 end
