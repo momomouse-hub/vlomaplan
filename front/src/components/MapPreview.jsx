@@ -3,8 +3,8 @@ import { useMap, Map } from "@vis.gl/react-google-maps";
 import CustomMarker from "./CustomMarker";
 import MapPopup from "./MapPopup";
 import PlaceDetailCard from "./PlaceDetailCard";
-import { createBookmark, placeStatus } from "../api/bookmarks";
-import { totalCountWishlists } from "../api/wishlists";
+import { createBookmark } from "../api/bookmarks";
+import { totalCountWishlists, wishlistsStatus } from "../api/wishlists";
 
 const MapPreview = ({
   position,
@@ -29,19 +29,6 @@ const MapPreview = ({
   const prevH = useRef(mapHeight);
 
   const [placeThumbUrl, setPlaceThumbUrl] = useState(null);
-
-  useEffect(() => {
-    if (!selectedPlace?.place_id) return;
-    (async () => {
-      try {
-        const res = await placeStatus({ place_id: selectedPlace.place_id });
-        setPlaceThumbUrl(res.thumbnail_url || null);
-      } catch (e) {
-        console.error("place_status failed", e);
-        setPlaceThumbUrl(null);
-      }
-    })();
-  }, [selectedPlace?.place_id]);
 
   useEffect(() => {
     if (!map) return;
@@ -70,11 +57,13 @@ const MapPreview = ({
     if (!pid) return;
     (async () => {
       try {
-        const { saved } = await placeStatus({ place_id: pid });
+        const { saved, thumbnail_url } = await wishlistsStatus({ place_id: pid });
         setIsSavedGlobally(!!saved);
+        setPlaceThumbUrl(thumbnail_url || null);
       } catch (e) {
         console.warn("place_status init failed:", e);
         setIsSavedGlobally(false);
+        setPlaceThumbUrl(null);
       }
     })();
   }, [selectedPlace?.place_id]);
