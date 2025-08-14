@@ -20,11 +20,15 @@ class Api::BookmarksController < ApplicationController
 
       VideoViewPlace.create_or_find_by!(video_view: vv, place: place)
 
+      Wishlist.create_or_find_by!(user: current_user, place: place) do |w|
+        w.created_at = Time.current
+      end
+
       render json: {
         video_view: { id: vv.id, youtube_video_id: vv.youtube_video_id },
         place: { id: place.id, place_id: place.place_id, name: place.name },
-        linked: true
-      }, status: :created
+        wishlist: { saved: true }
+      }
     end
   rescue ActiveRecord::RecordInvalid => e
     render json: { error: e.record.errors.full_messages }, status: :unprocessable_entity
