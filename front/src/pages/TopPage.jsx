@@ -10,7 +10,7 @@ const TopPage = () => {
       try {
           setLoading(true);
           await ensureVisitor();
-          navigate("/home", { replace: true });
+          navigate("/home");
       } catch (e) {
           console.error(e);
           alert("初期化に失敗しました。ネットワークを確認してください。");
