@@ -11,15 +11,6 @@ export async function createBookmark(payload) {
   return res.json();
 }
 
-export async function existsBookmark({ youtube_video_id, place_id }) {
-  const url = new URL(`${base}/api/bookmarks/exists`);
-  url.searchParams.set('youtube_video_id', youtube_video_id);
-  url.searchParams.set('place_id', place_id);
-  const res = await apiFetch(url.toString());
-  if (!res.ok) throw new Error(`exists failed: ${res.status}`);
-  return res.json();
-}
-
 export async function totalCountBookmarks() {
   const res = await apiFetch(`${base}/api/bookmarks/total_count`);
   if (!res.ok) throw new Error("totalCountBookmarks failed");

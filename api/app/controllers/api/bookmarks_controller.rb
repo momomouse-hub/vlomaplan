@@ -27,26 +27,11 @@ class Api::BookmarksController < ApplicationController
       render json: {
         video_view: { id: vv.id, youtube_video_id: vv.youtube_video_id },
         place: { id: place.id, place_id: place.place_id, name: place.name },
-        wishlist: { saved: true }
+        wishlist: { saved: true }  
       }
     end
   rescue ActiveRecord::RecordInvalid => e
     render json: { error: e.record.errors.full_messages }, status: :unprocessable_entity
-  end
-
-  def exists
-    youtube_id = params.require(:youtube_video_id)
-    place_id = params.require(:place_id)
-
-    vv = VideoView.find_by(youtube_video_id: youtube_id)
-    place = Place.find_by(place_id: place_id)
-    present = vv && place && VideoViewPlace.exists?(video_view_id: vv.id, place_id: place.id)
-    render json: { exists: !!present }
-  end
-
-  def total_count
-    total = VideoViewPlace.count
-    render json: { total_count: total }
   end
 
   def place_status
