@@ -1,14 +1,11 @@
 Rails.application.routes.draw do
   namespace :api do
-    resources :bookmarks, only: [:create] do
-      collection do
-        get :place_status
-      end
-    end
+    resources :bookmarks, only: [:create]
     resource :identity, only: [:show]
     resources :wishlists, only: [] do
       collection do
         get :total_count
+        get :status
       end
     end
   end
