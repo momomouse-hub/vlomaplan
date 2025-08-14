@@ -3,7 +3,8 @@ import { useMap, Map } from "@vis.gl/react-google-maps";
 import CustomMarker from "./CustomMarker";
 import MapPopup from "./MapPopup";
 import PlaceDetailCard from "./PlaceDetailCard";
-import { createBookmark, placeStatus, totalCountBookmarks } from "../api/bookmarks";
+import { createBookmark, placeStatus } from "../api/bookmarks";
+import { totalCountWishlists } from "../api/wishlists";
 
 const MapPreview = ({
   position,
@@ -56,7 +57,7 @@ const MapPreview = ({
   useEffect(() => {
     (async () => {
       try {
-        const { total_count } = await totalCountBookmarks();
+        const { total_count } = await totalCountWishlists();
         setTotalFavCount(Number(total_count || 0));
       } catch (e) {
         console.warn("total_count init failed:", e);
@@ -103,7 +104,10 @@ const MapPreview = ({
         },
       });
       setIsSavedGlobally(true);
-      setTotalFavCount((c) => c + 1);
+      try {
+        const { total_count } = await totalCountWishlists();
+        setTotalFavCount(Number(total_count || 0));
+      } catch {}
       setIsPopupOpen(false);
       setShowDetail(true);
       onRequestExpand?.();
