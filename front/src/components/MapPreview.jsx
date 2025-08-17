@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useMap, Map } from "@vis.gl/react-google-maps";
 import CustomMarker from "./CustomMarker";
+import IconPillButton from "./IconPillButton";
 import MapPopup from "./MapPopup";
 import PlaceDetailCard from "./PlaceDetailCard";
 import { createBookmark } from "../api/bookmarks";
@@ -119,69 +120,22 @@ const MapPreview = ({
           flexDirection: "column",
           gap: 12,
           zIndex: 1100,
+          alignItems: "flex-end",
         }}
       >
-        <button
-          onClick={() => alert("いきたい場所リストを開く")}
-          style={{
-            position: "relative",
-            backgroundColor: "white",
-            border: "2px solid #2CA478",
-            borderRadius: "50%",
-            padding: 12,
-            cursor: "pointer",
-            width: 48,
-            height: 48,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <img
-            src={hasAnyFavorites ? "/filledheart.svg" : "/heart.svg"}
-            alt="いきたい場所リスト"
-            style={{ width: 32, height: 32 }}
-          />
-          {hasAnyFavorites && (
-            <span
-              style={{
-                position: "absolute",
-                top: -6,
-                right: -6,
-                minWidth: 18,
-                height: 18,
-                borderRadius: 9,
-                background: "#e02424",
-                color: "#fff",
-                fontSize: 12,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                padding: "0 4px",
-              }}
-            >
-              {totalFavCount}
-            </span>
-          )}
-        </button>
-
-        <button
-          onClick={() => alert("旅行プラン機能は準備中です")}
-          style={{
-            backgroundColor: "white",
-            border: "2px solid #2CA478",
-            borderRadius: "50%",
-            padding: 12,
-            cursor: "pointer",
-            width: 48,
-            height: 48,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <img src={isSaved ? "/filledluggage.svg" : "/luggage.svg"} alt="旅行プラン" style={{ width: 32, height: 32 }} />
-        </button>
+        <IconPillButton
+          label="行きたい場所リストを表示"
+          iconSrc={hasAnyFavorites ? "/filledheart.svg" : "/heart.svg"}
+          iconAlt="いきたい場所リスト"
+          badgeCount={totalFavCount}
+          onAction={() => alert("いきたい場所リストを開く")}
+        />
+        <IconPillButton
+          label="旅行プランを表示"
+          iconSrc={isSaved ? "/filledluggage.svg" : "/luggage.svg"}
+          iconAlt="旅行プラン"
+          onAction={() => alert("旅行プラン機能は準備中です")}
+        />
       </div>
 
       <Map
