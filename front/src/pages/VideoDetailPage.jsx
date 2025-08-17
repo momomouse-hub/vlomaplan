@@ -5,7 +5,7 @@ import useIsMobile from "../hooks/useIsMobile";
 import MobileLayout from "../components/layouts/MobileLayout";
 import DesktopLayout from "../components/layouts/DesktopLayout";
 
-const VideoDetailPage = () => {
+function VideoDetailPage() {
   const { id } = useParams();
   const isMobile = useIsMobile();
 
@@ -54,6 +54,6 @@ const VideoDetailPage = () => {
       )}
     </APIProvider>
   );
-};
+}
 
 export default VideoDetailPage;

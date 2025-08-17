@@ -1,8 +1,8 @@
+import { Outlet } from "react-router-dom";
 import ScrollToTop from "../ScrollToTop";
 import Header from "../Header";
-import { Outlet } from "react-router-dom";
 
-const MainLayout = () => {
+function MainLayout() {
   return (
       <>
         <Header />
@@ -10,6 +10,6 @@ const MainLayout = () => {
         <Outlet />
       </>
   );
-};
+}
 
 export default MainLayout;

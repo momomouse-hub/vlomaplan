@@ -1,4 +1,4 @@
-const TopHeader = () => {
+function TopHeader() {
   return (
     <header
       style={{

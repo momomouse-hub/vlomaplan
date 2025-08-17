@@ -1,6 +1,6 @@
 import SearchBar from "../components/SearchBar";
 
-const HomePage = () => {
+function HomePage() {
   return (
     <main>
       <h2>Homeページ</h2>

@@ -7,7 +7,7 @@ import Homepage from "./pages/HomePage";
 import SearchResultPage from "./pages/SearchResultPage";
 import VideoDetailPage from "./pages/VideoDetailPage";
 
-const App = () => {
+function App() {
   return (
     <Router>
       <Routes>
@@ -22,6 +22,6 @@ const App = () => {
       </Routes>
     </Router>
   );
-};
+}
 
 export default App;

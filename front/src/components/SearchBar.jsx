@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-const SearchBar = () => {
+function SearchBar() {
   const [keyword, setKeyword] = useState("");
   const navigate = useNavigate();
 

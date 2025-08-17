@@ -1,6 +1,6 @@
 import SearchBar from "./SearchBar";
 
-const Header = () => {
+function Header() {
   return (
     <header
       style={{

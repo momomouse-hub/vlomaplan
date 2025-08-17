@@ -45,13 +45,8 @@ export default function PlaceDetailCard({
   const title = place.name || "場所";
   const address = place.address || "—";
 
-  return (
-    <div
-      onClick={(e) => {
-        onRootClick?.(e);
-      }}
-      style={containerStyle}
-    >
+  const renderContent = () => (
+    <>
       <div style={{ minWidth: 0 }}>
         <div
           style={{
@@ -76,6 +71,7 @@ export default function PlaceDetailCard({
 
           {isOverlay && (
             <button
+              type="button"
               aria-label="close"
               onClick={(e) => {
                 e.stopPropagation();
@@ -138,6 +134,7 @@ export default function PlaceDetailCard({
             <>
               <span style={{ color: "#2CA478", fontWeight: 700 }}>追加済み</span>
               <button
+                type="button"
                 onClick={(e) => {
                   e.stopPropagation();
                   onRemove?.();
@@ -157,6 +154,7 @@ export default function PlaceDetailCard({
             </>
           ) : (
             <button
+              type="button"
               onClick={(e) => {
                 e.stopPropagation();
                 onAdd?.();
@@ -180,6 +178,7 @@ export default function PlaceDetailCard({
 
         <div style={{ marginTop: 8 }}>
           <button
+            type="button"
             onClick={(e) => {
               e.stopPropagation();
               onAddToPlan?.();
@@ -221,6 +220,32 @@ export default function PlaceDetailCard({
           <span style={{ fontSize: 13, color: "#666" }}>サムネイル</span>
         )}
       </div>
-    </div>
+    </>
   );
+
+  // ★ onRootClick あり：role/tabIndex/keyboard を “リテラル” で付けたブランチ
+  if (onRootClick) {
+    return (
+      <div
+        style={containerStyle}
+        role="button"
+        tabIndex={0}
+        aria-label={title}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            onRootClick(e);
+          }
+        }}
+        onClick={(e) => {
+          onRootClick(e);
+        }}
+      >
+        {renderContent()}
+      </div>
+    );
+  }
+
+  // ★ onRootClick なし：完全にプレーンな div（クリック/タブ不可）
+  return <div style={containerStyle}>{renderContent()}</div>;
 }
