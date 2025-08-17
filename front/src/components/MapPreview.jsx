@@ -1,11 +1,11 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useMap, Map } from "@vis.gl/react-google-maps";
 import CustomMarker from "./CustomMarker";
 import IconPillButton from "./IconPillButton";
 import MapPopup from "./MapPopup";
 import PlaceDetailCard from "./PlaceDetailCard";
 import { createBookmark } from "../api/bookmarks";
-import { totalCountWishlists, wishlistsStatus } from "../api/wishlists";
+import { totalCountWishlists, wishlistsStatus, listWishlists } from "../api/wishlists";
 
 const MapPreview = ({
   position,
@@ -18,12 +18,18 @@ const MapPreview = ({
   const [isPopupOpen, setIsPopupOpen] = useState(false);
   const [showDetail, setShowDetail] = useState(false);
 
+  // ▼ Wishlist パネル用
+  const [showWishlist, setShowWishlist] = useState(false);
+  const [wlItems, setWlItems] = useState([]);
+  const [wlNext, setWlNext] = useState(1);   // 次に読む page（null なら終端）
+  const [wlLoading, setWlLoading] = useState(false);
+  const WL_PER = 10;
+
   const [isSavedGlobally, setIsSavedGlobally] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [totalFavCount, setTotalFavCount] = useState(0);
 
   const [isSaved, setIsSaved] = useState(false);
-
   const hasAnyFavorites = totalFavCount > 0;
 
   const map = useMap();
@@ -31,6 +37,68 @@ const MapPreview = ({
 
   const [placeThumbUrl, setPlaceThumbUrl] = useState(null);
 
+  // ▼ Wishlist 読み込み
+  const loadWishlist = useCallback(
+    async (page = wlNext, per = WL_PER) => {
+      if (wlLoading || page == null) return;
+      setWlLoading(true);
+      try {
+        const data = await listWishlists({ page, per });
+        setWlItems((prev) => prev.concat(data.items || []));
+        setWlNext(data.pagination?.next ?? null);
+      } catch (e) {
+        console.error("Failed to load wishlists:", e);
+      } finally {
+        setWlLoading(false);
+      }
+    },
+    [wlLoading, wlNext]
+  );
+
+  // ▼ ピルクリック：モーダル最大化→パネル表示→未取得なら1ページ読む
+  const handleOpenWishlist = useCallback(
+    async () => {
+      onRequestExpand?.();
+      setShowWishlist(true);
+      setIsPopupOpen(false);
+      setShowDetail(false);
+      if (wlItems.length === 0) {
+        await loadWishlist(1, WL_PER);
+      }
+    },
+    [wlItems.length, loadWishlist, onRequestExpand]
+  );
+
+  const handleCloseWishlist = useCallback(() => {
+    setShowWishlist(false);
+  }, []);
+
+  // ▼ リストアイテム選択時：地図をその場所へパンしてパネルを閉じる
+  const handleSelectWishlistItem = useCallback(
+    (it) => {
+      const lat = Number(it?.place?.latitude);
+      const lng = Number(it?.place?.longitude);
+      if (Number.isFinite(lat) && Number.isFinite(lng) && map) {
+        map.panTo({ lat, lng });
+      }
+      setShowWishlist(false);
+    },
+    [map]
+  );
+
+  // ▼ 削除（仮実装：まずは表示確認）
+  const handleRemoveWishlist = useCallback((id) => {
+    console.log("[Wishlist] remove click:", id);
+    alert(`削除（仮）: id=${id}`);
+  }, []);
+
+  // ▼ 旅行プランに追加（仮実装）
+  const handleAddToPlanFromWishlist = useCallback((item) => {
+    console.log("[Wishlist] add-to-plan click:", item);
+    alert(`旅行プランに追加（仮）: ${item.place?.name ?? "(no name)"}`);
+  }, []);
+
+  // 地図高さ変化時のパン
   useEffect(() => {
     if (!map) return;
     const oldH = prevH.current;
@@ -42,6 +110,7 @@ const MapPreview = ({
     prevH.current = newH;
   }, [mapHeight, map]);
 
+  // 合計カウント初期化
   useEffect(() => {
     (async () => {
       try {
@@ -53,6 +122,7 @@ const MapPreview = ({
     })();
   }, []);
 
+  // 選択中placeの保存状態とサムネ初期化
   useEffect(() => {
     const pid = selectedPlace?.place_id;
     if (!pid) return;
@@ -69,6 +139,7 @@ const MapPreview = ({
     })();
   }, [selectedPlace?.place_id]);
 
+  // 地図クリックなどで詳細/ポップアップ閉じ
   useEffect(() => {
     setIsPopupOpen(false);
     setShowDetail(false);
@@ -109,6 +180,122 @@ const MapPreview = ({
     }
   };
 
+  // ▼ 下部リスト（PlaceDetailCard の inline 版で描画）
+  function WishlistPanel({
+    heightPx = 280,
+    items,
+    loading,
+    hasNext,
+    onLoadMore,
+    onClose,
+    onSelect,
+    onRemove,
+    onAddToPlan,
+  }) {
+    const sentinelRef = useRef(null);
+
+    useEffect(() => {
+      if (!hasNext || loading) return;
+      const el = sentinelRef.current;
+      if (!el) return;
+      const io = new IntersectionObserver((entries) => {
+        entries.forEach((e) => e.isIntersecting && onLoadMore());
+      });
+      io.observe(el);
+      return () => io.disconnect();
+    }, [hasNext, loading, onLoadMore]);
+
+    return (
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          position: "absolute",
+          left: 12,
+          right: 12,
+          bottom: "calc(env(safe-area-inset-bottom, 0px) + 12px)",
+          background: "#fff",
+          borderRadius: 16,
+          boxShadow: "0 10px 24px rgba(0,0,0,.2)",
+          zIndex: 3000,
+          display: "flex",
+          flexDirection: "column",
+          height: heightPx,
+          overflow: "hidden",
+        }}
+      >
+        {/* ヘッダー */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            padding: 12,
+            borderBottom: "1px solid #eee",
+          }}
+        >
+          <div style={{ fontWeight: 700, fontSize: 16 }}>行きたい場所リスト</div>
+          <div style={{ marginLeft: "auto", fontSize: 12, color: "#666" }}>
+            {items.length} 件{loading ? "（読込中…）" : ""}
+          </div>
+          <button
+            aria-label="close"
+            onClick={onClose}
+            style={{
+              marginLeft: 8,
+              background: "#f2f2f2",
+              border: "none",
+              width: 28,
+              height: 28,
+              borderRadius: 14,
+              cursor: "pointer",
+              fontWeight: 700,
+            }}
+          >
+            ×
+          </button>
+        </div>
+
+        {/* リスト（ここだけスクロール可） */}
+        <div style={{ flex: 1, overflowY: "auto", padding: 12, gap: 10, display: "grid" }}>
+          {items.length === 0 && !loading && (
+            <div style={{ color: "#666" }}>まだ保存がありません</div>
+          )}
+
+          {items.map((it) => (
+            <PlaceDetailCard
+              key={it.id}
+              variant="inline"
+              place={it.place}
+              thumbnailUrl={it.thumbnail_url}
+              isSaved={true}
+              isSaving={false}
+              // inline では onAdd は通常不要なので渡さない
+              onRemove={() => onRemove?.(it.id)}
+              onAddToPlan={() => onAddToPlan?.(it)}
+              // クリックで地図パン
+              onRootClick={() => onSelect(it)}
+              thumbWidth={110}
+              thumbHeight={90}
+            />
+          ))}
+
+          {/* 無限読み足しの番人 */}
+          <div ref={sentinelRef} style={{ height: 1 }} />
+          {loading && (
+            <div style={{ padding: "8px 0", textAlign: "center", color: "#666" }}>
+              読み込み中…
+            </div>
+          )}
+          {!hasNext && items.length > 0 && (
+            <div style={{ padding: "6px 0", textAlign: "center", color: "#999", fontSize: 12 }}>
+              以上です
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div style={{ height: (mapHeight ?? 400) + "px", width: "100%", position: "relative" }}>
       <div
@@ -128,7 +315,7 @@ const MapPreview = ({
           iconSrc={hasAnyFavorites ? "/filledheart.svg" : "/heart.svg"}
           iconAlt="いきたい場所リスト"
           badgeCount={totalFavCount}
-          onAction={() => alert("いきたい場所リストを開く")}
+          onAction={handleOpenWishlist}
         />
         <IconPillButton
           label="旅行プランを表示"
@@ -189,14 +376,31 @@ const MapPreview = ({
 
       {showDetail && isSavedGlobally && (
         <PlaceDetailCard
+          variant="overlay"
           place={selectedPlace}
           thumbnailUrl={placeThumbUrl ?? currentVideo?.thumbnail ?? null}
           isSaved
           isSaving={isSaving}
           onAdd={undefined}
           onRemove={undefined}
-          onAddToPlan={() => alert("旅行プラン機能は準備中です")}
+          onAddToPlan={() => alert("旅行プランに追加（仮）")}
           onClose={() => setShowDetail(false)}
+          thumbWidth={120}
+          thumbHeight={100}
+        />
+      )}
+
+      {showWishlist && (
+        <WishlistPanel
+          heightPx={Math.min(520, Math.max(260, Math.floor((mapHeight ?? 400) * 0.65)))} // 画面に応じて可変
+          items={wlItems}
+          loading={wlLoading}
+          hasNext={wlNext != null}
+          onLoadMore={() => loadWishlist()}
+          onClose={handleCloseWishlist}
+          onSelect={handleSelectWishlistItem}
+          onRemove={handleRemoveWishlist}
+          onAddToPlan={handleAddToPlanFromWishlist}
         />
       )}
     </div>

@@ -1,4 +1,4 @@
-const PlaceDetailCard = ({
+export default function PlaceDetailCard({
   place,
   thumbnailUrl,
   isSaved,
@@ -7,12 +7,17 @@ const PlaceDetailCard = ({
   onRemove,
   onAddToPlan,
   onClose,
-}) => {
+  variant = "overlay",
+  onRootClick,
+  thumbWidth = 120,
+  thumbHeight = 100,
+}) {
   if (!place) return null;
 
-  return (
-    <div
-      style={{
+  const isOverlay = variant === "overlay";
+
+  const containerStyle = isOverlay
+    ? {
         position: "absolute",
         left: 12,
         right: 12,
@@ -22,14 +27,40 @@ const PlaceDetailCard = ({
         boxShadow: "0 10px 24px rgba(0,0,0,.2)",
         zIndex: 3000,
         display: "grid",
-        gridTemplateColumns: "1fr 120px",
+        gridTemplateColumns: `1fr ${thumbWidth}px`,
         gap: 12,
         padding: 12,
+      }
+    : {
+        background: "#fff",
+        borderRadius: 12,
+        border: "1px solid #eee",
+        display: "grid",
+        gridTemplateColumns: `1fr ${thumbWidth}px`,
+        gap: 12,
+        padding: 10,
+        cursor: onRootClick ? "pointer" : "default",
+      };
+
+  const title = place.name || "場所";
+  const address = place.address || "—";
+
+  return (
+    <div
+      onClick={(e) => {
+        onRootClick?.(e);
       }}
-      onClick={(e) => e.stopPropagation()}
+      style={containerStyle}
     >
       <div style={{ minWidth: 0 }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 8,
+          }}
+        >
           <div
             style={{
               fontWeight: 700,
@@ -38,39 +69,79 @@ const PlaceDetailCard = ({
               whiteSpace: "nowrap",
               textOverflow: "ellipsis",
             }}
-            title={place.name}
+            title={title}
           >
-            {place.name || "場所"}
+            {title}
           </div>
-          <button
-            aria-label="close"
-            onClick={onClose}
-            style={{
-              background: "#f2f2f2",
-              border: "none",
-              width: 28,
-              height: 28,
-              borderRadius: 14,
-              cursor: "pointer",
-              fontWeight: 700,
-            }}
-          >
-            ×
-          </button>
+
+          {isOverlay && (
+            <button
+              aria-label="close"
+              onClick={(e) => {
+                e.stopPropagation();
+                onClose?.();
+              }}
+              style={{
+                background: "#f2f2f2",
+                border: "none",
+                width: 28,
+                height: 28,
+                borderRadius: 14,
+                cursor: "pointer",
+                fontWeight: 700,
+              }}
+            >
+              ×
+            </button>
+          )}
         </div>
 
-        <div style={{ marginTop: 6, color: "#666", fontSize: 13, display: "flex", alignItems: "center", gap: 6 }}>
+        <div
+          title={address}
+          style={{
+            marginTop: 6,
+            color: "#666",
+            fontSize: 12,
+            overflow: "hidden",
+            whiteSpace: "nowrap",
+            textOverflow: "ellipsis",
+          }}
+        >
+          {address}
+        </div>
+
+        <div
+          style={{
+            marginTop: 6,
+            color: "#666",
+            fontSize: 13,
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+          }}
+        >
           <span>🕘</span>
           <span>—</span>
           <span style={{ marginLeft: "auto" }}>▾</span>
         </div>
 
-        <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+        <div
+          style={{
+            marginTop: 10,
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+            flexWrap: "wrap",
+          }}
+        >
           {isSaved ? (
             <>
               <span style={{ color: "#2CA478", fontWeight: 700 }}>追加済み</span>
               <button
-                onClick={onRemove}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onRemove?.();
+                }}
                 disabled={!onRemove}
                 style={{
                   background: "none",
@@ -78,6 +149,7 @@ const PlaceDetailCard = ({
                   color: onRemove ? "#007aff" : "#aaa",
                   textDecoration: "underline",
                   cursor: onRemove ? "pointer" : "default",
+                  padding: 0,
                 }}
               >
                 削除
@@ -85,7 +157,10 @@ const PlaceDetailCard = ({
             </>
           ) : (
             <button
-              onClick={onAdd}
+              onClick={(e) => {
+                e.stopPropagation();
+                onAdd?.();
+              }}
               disabled={isSaving}
               style={{
                 background: "#2CA478",
@@ -105,7 +180,10 @@ const PlaceDetailCard = ({
 
         <div style={{ marginTop: 8 }}>
           <button
-            onClick={onAddToPlan}
+            onClick={(e) => {
+              e.stopPropagation();
+              onAddToPlan?.();
+            }}
             disabled={!onAddToPlan}
             style={{
               background: "none",
@@ -124,7 +202,7 @@ const PlaceDetailCard = ({
       <div
         style={{
           width: "100%",
-          height: 100,
+          height: thumbHeight,
           borderRadius: 12,
           background: "#e9e9e9",
           display: "flex",
@@ -134,13 +212,15 @@ const PlaceDetailCard = ({
         }}
       >
         {thumbnailUrl ? (
-          <img src={thumbnailUrl} alt="サムネイル" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          <img
+            src={thumbnailUrl}
+            alt="サムネイル"
+            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+          />
         ) : (
           <span style={{ fontSize: 13, color: "#666" }}>サムネイル</span>
         )}
       </div>
     </div>
   );
-};
-
-export default PlaceDetailCard;
+}
