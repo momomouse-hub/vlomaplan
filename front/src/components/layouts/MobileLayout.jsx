@@ -1,13 +1,13 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { Sheet } from "react-modal-sheet";
 import VideoPlayerWrapper from "../VideoPlayerWrapper";
 import VideoItem from "../VideoItem";
 import MapPreview from "../MapPreview";
-import { Sheet } from "react-modal-sheet";
 import MapSearchBar from "../MapSearchBar";
 import PlaceAutocomplete from "../PlaceAutocomplete";
 
-const MobileLayout = ({ id, relatedVideos, channels, currentVideo }) => {
+function MobileLayout({ id, relatedVideos, channels, currentVideo }) {
   const navigate = useNavigate();
 
   const sheetRef = useRef(null);
@@ -41,12 +41,16 @@ const MobileLayout = ({ id, relatedVideos, channels, currentVideo }) => {
 
   const [contentHeight, setContentHeight] = useState(400);
   useEffect(() => {
-    if (!contentRef.current) return;
     const el = contentRef.current;
+    if (!el) {
+      return () => {};
+    }
     const ro = new ResizeObserver(() => setContentHeight(el.clientHeight));
     setContentHeight(el.clientHeight);
     ro.observe(el);
-    return () => ro.disconnect();
+    return () => {
+      ro.disconnect();
+    };
   }, [isSheetOpen]);
 
   const handleSelectPlace = (p) => {
@@ -153,6 +157,6 @@ const MobileLayout = ({ id, relatedVideos, channels, currentVideo }) => {
       </Sheet>
     </div>
   );
-};
+}
 
 export default MobileLayout;

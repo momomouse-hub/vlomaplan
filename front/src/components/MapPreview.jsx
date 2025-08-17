@@ -5,23 +5,159 @@ import IconPillButton from "./IconPillButton";
 import MapPopup from "./MapPopup";
 import PlaceDetailCard from "./PlaceDetailCard";
 import { createBookmark } from "../api/bookmarks";
-import { totalCountWishlists, wishlistsStatus, listWishlists, deleteWishlist } from "../api/wishlists";
+import {
+  totalCountWishlists,
+  wishlistsStatus,
+  listWishlists,
+  deleteWishlist,
+} from "../api/wishlists";
 
-const MapPreview = ({
+// ==== MapPreviewの外に切り出し（安定化 & ESLint対策）====
+function WishlistPanel({
+  heightPx = 280,
+  items,
+  loading,
+  hasNext,
+  onLoadMore,
+  onClose,
+  onSelect,
+  onRemove,
+  onAddToPlan,
+}) {
+  const sentinelRef = useRef(null);
+
+  useEffect(() => {
+    if (!hasNext || loading) {
+      // 早期 return のときもクリーンアップ関数を返す（consistent-return対策）
+      return () => {};
+    }
+    const el = sentinelRef.current;
+    if (!el) {
+      // 一貫してクリーンアップ関数を返す
+      return () => {};
+    }
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach((e) => {
+        if (e.isIntersecting) onLoadMore();
+      });
+    });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [hasNext, loading, onLoadMore]);
+
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={(e) => e.stopPropagation()}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") e.stopPropagation();
+      }}
+      style={{
+        position: "absolute",
+        left: 12,
+        right: 12,
+        bottom: "calc(env(safe-area-inset-bottom, 0px) + 12px)",
+        background: "#fff",
+        borderRadius: 16,
+        boxShadow: "0 10px 24px rgba(0,0,0,.2)",
+        zIndex: 3000,
+        display: "flex",
+        flexDirection: "column",
+        height: heightPx,
+        overflow: "hidden",
+      }}
+    >
+      {/* ヘッダー */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          padding: 12,
+          borderBottom: "1px solid #eee",
+        }}
+      >
+        <div style={{ fontWeight: 700, fontSize: 16 }}>行きたい場所リスト</div>
+        <div style={{ marginLeft: "auto", fontSize: 12, color: "#666" }}>
+          {items.length} 件{loading ? "（読込中…）" : ""}
+        </div>
+        <button
+          type="button"
+          aria-label="close"
+          onClick={onClose}
+          style={{
+            marginLeft: 8,
+            background: "#f2f2f2",
+            border: "none",
+            width: 28,
+            height: 28,
+            borderRadius: 14,
+            cursor: "pointer",
+            fontWeight: 700,
+          }}
+        >
+          ×
+        </button>
+      </div>
+
+      {/* リスト（ここだけスクロール可） */}
+      <div style={{ flex: 1, overflowY: "auto", padding: 12, gap: 10, display: "grid" }}>
+        {items.length === 0 && !loading && <div style={{ color: "#666" }}>まだ保存がありません</div>}
+
+        {items.map((it) => (
+          <PlaceDetailCard
+            key={it.id}
+            variant="inline"
+            place={it.place}
+            thumbnailUrl={it.thumbnailUrl}
+            isSaved
+            isSaving={false}
+            onRemove={() => {
+              onRemove?.(it.id);
+            }}
+            onAddToPlan={() => {
+              onAddToPlan?.(it);
+            }}
+            onRootClick={() => {
+              onSelect(it);
+            }}
+            thumbWidth={110}
+            thumbHeight={90}
+          />
+        ))}
+
+        {/* 無限読み足しの番人 */}
+        <div ref={sentinelRef} style={{ height: 1 }} />
+        {loading && (
+          <div style={{ padding: "8px 0", textAlign: "center", color: "#666" }}>読み込み中…</div>
+        )}
+        {!hasNext && items.length > 0 && (
+          <div style={{ padding: "6px 0", textAlign: "center", color: "#999", fontSize: 12 }}>
+            以上です
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ================= MapPreview =================
+function MapPreview({
   position,
   placeName,
   selectedPlace,
   currentVideo,
   onRequestExpand,
   mapHeight,
-}) => {
+}) {
   const [isPopupOpen, setIsPopupOpen] = useState(false);
   const [showDetail, setShowDetail] = useState(false);
 
   // ▼ Wishlist パネル用
   const [showWishlist, setShowWishlist] = useState(false);
   const [wlItems, setWlItems] = useState([]);
-  const [wlNext, setWlNext] = useState(1);   // 次に読む page（null なら終端）
+  const [wlNext, setWlNext] = useState(1); // 次に読む page（null なら終端）
   const [wlLoading, setWlLoading] = useState(false);
   const WL_PER = 10;
 
@@ -29,7 +165,7 @@ const MapPreview = ({
   const [isSaving, setIsSaving] = useState(false);
   const [totalFavCount, setTotalFavCount] = useState(0);
 
-  const [isSaved, setIsSaved] = useState(false);
+  const [isSaved] = useState(false);
   const hasAnyFavorites = totalFavCount > 0;
 
   const map = useMap();
@@ -56,19 +192,21 @@ const MapPreview = ({
     [wlLoading, wlNext]
   );
 
+  // ← ここを修正（no-void対策）
+  const handleLoadMore = useCallback(() => {
+    loadWishlist();
+  }, [loadWishlist]);
+
   // ▼ ピルクリック：モーダル最大化→パネル表示→未取得なら1ページ読む
-  const handleOpenWishlist = useCallback(
-    async () => {
-      onRequestExpand?.();
-      setShowWishlist(true);
-      setIsPopupOpen(false);
-      setShowDetail(false);
-      if (wlItems.length === 0) {
-        await loadWishlist(1, WL_PER);
-      }
-    },
-    [wlItems.length, loadWishlist, onRequestExpand]
-  );
+  const handleOpenWishlist = useCallback(async () => {
+    onRequestExpand?.();
+    setShowWishlist(true);
+    setIsPopupOpen(false);
+    setShowDetail(false);
+    if (wlItems.length === 0) {
+      await loadWishlist(1, WL_PER);
+    }
+  }, [wlItems.length, loadWishlist, onRequestExpand]);
 
   const handleCloseWishlist = useCallback(() => {
     setShowWishlist(false);
@@ -87,26 +225,32 @@ const MapPreview = ({
     [map]
   );
 
-  // ▼ 旅行プランに追加（仮実装）
-  const handleRemoveWishlist = useCallback(async (id) => {
-    try {
-      await deleteWishlist(id);
-      setWlItems((prev) => prev.filter((it) => it.id !== id));
-      setTotalFavCount((c) => Math.max(0, (c || 0) - 1));
-      if (currentWishlistId && currentWishlistId === id) {
-        setIsSavedGlobally(false);
-        setShowDetail(false);
-        setCurrentWishlistId(null);
+  // ▼ 削除
+  const handleRemoveWishlist = useCallback(
+    async (id) => {
+      try {
+        await deleteWishlist(id);
+        setWlItems((prev) => prev.filter((it) => it.id !== id));
+        setTotalFavCount((c) => Math.max(0, (c || 0) - 1));
+        if (currentWishlistId && currentWishlistId === id) {
+          setIsSavedGlobally(false);
+          setShowDetail(false);
+          setCurrentWishlistId(null);
+        }
+      } catch (e) {
+        console.error(e);
+        // eslint-disable-next-line no-alert
+        alert("削除に失敗しました。");
       }
-    } catch (e) {
-      console.error(e);
-      alert("削除に失敗しました。");
-    }
-  }, [currentWishlistId]);
+    },
+    [currentWishlistId]
+  );
 
-  // ▼ 削除（仮実装：まずは表示確認）
+  // ▼ 旅行プランに追加（仮）
   const handleAddToPlanFromWishlist = useCallback((item) => {
+    // eslint-disable-next-line no-console
     console.log("[Wishlist] add-to-plan click:", item);
+    // eslint-disable-next-line no-alert
     alert(`旅行プランに追加（仮）: ${item.place?.name ?? "(no name)"}`);
   }, []);
 
@@ -126,24 +270,24 @@ const MapPreview = ({
   useEffect(() => {
     (async () => {
       try {
-        const { total_count } = await totalCountWishlists();
-        setTotalFavCount(Number(total_count || 0));
+        const { totalCount } = await totalCountWishlists();
+        setTotalFavCount(Number(totalCount || 0));
       } catch (e) {
-        console.warn("total_count init failed:", e);
+        console.warn("totalCount init failed:", e);
       }
     })();
   }, []);
 
   // 選択中placeの保存状態とサムネ初期化
   useEffect(() => {
-    const pid = selectedPlace?.place_id;
+    const pid = selectedPlace?.placeId;
     if (!pid) return;
     (async () => {
       try {
-        const { saved, thumbnail_url, wishlist_id } = await wishlistsStatus({ place_id: pid });
+        const { saved, thumbnailUrl, wishlistId } = await wishlistsStatus({ placeId: pid });
         setIsSavedGlobally(!!saved);
-        setPlaceThumbUrl(thumbnail_url || null);
-        setCurrentWishlistId(wishlist_id ?? null);
+        setPlaceThumbUrl(thumbnailUrl || null);
+        setCurrentWishlistId(wishlistId ?? null);
       } catch (e) {
         console.warn("place_status init failed:", e);
         setIsSavedGlobally(false);
@@ -151,13 +295,13 @@ const MapPreview = ({
         setCurrentWishlistId(null);
       }
     })();
-  }, [selectedPlace?.place_id]);
+  }, [selectedPlace?.placeId]);
 
   // 地図クリックなどで詳細/ポップアップ閉じ
   useEffect(() => {
     setIsPopupOpen(false);
     setShowDetail(false);
-  }, [selectedPlace?.place_id, position.lat, position.lng]);
+  }, [selectedPlace?.placeId, position.lat, position.lng]);
 
   const handleAddFavorite = async () => {
     if (!selectedPlace || !currentVideo || isSaving || isSavedGlobally) return;
@@ -167,11 +311,11 @@ const MapPreview = ({
         video_view: {
           youtube_video_id: currentVideo.id,
           title: currentVideo.title,
-          thumbnail_url: currentVideo.thumbnail,
+          thumbnailUrl: currentVideo.thumbnail,
           search_history_id: null,
         },
         place: {
-          place_id: selectedPlace.place_id,
+          placeId: selectedPlace.placeId,
           name: selectedPlace.name,
           address: selectedPlace.address,
           latitude: selectedPlace.latitude,
@@ -180,143 +324,34 @@ const MapPreview = ({
       });
       setIsSavedGlobally(true);
       try {
-        const { total_count } = await totalCountWishlists();
-        setTotalFavCount(Number(total_count || 0));
-      } catch { }
+        const { totalCount } = await totalCountWishlists();
+        setTotalFavCount(Number(totalCount || 0));
+      } catch (e) {
+        /* no-op */
+      }
       try {
-        const { wishlist_id, thumbnail_url } = await wishlistsStatus({ place_id: selectedPlace.place_id });
-        setCurrentWishlistId(wishlist_id ?? null);
-        if (thumbnail_url) setPlaceThumbUrl(thumbnail_url);
-      } catch { }
+        const { wishlistId, thumbnailUrl } = await wishlistsStatus({
+          placeId: selectedPlace.placeId,
+        });
+        setCurrentWishlistId(wishlistId ?? null);
+        if (thumbnailUrl) setPlaceThumbUrl(thumbnailUrl);
+      } catch (e) {
+        /* no-op */
+      }
       setIsPopupOpen(false);
       setShowDetail(true);
       onRequestExpand?.();
     } catch (e) {
       console.error(e);
+      // eslint-disable-next-line no-alert
       alert("保存に失敗しました。通信状況をご確認ください。");
     } finally {
       setIsSaving(false);
     }
   };
 
-  // ▼ 下部リスト（PlaceDetailCard の inline 版で描画）
-  function WishlistPanel({
-    heightPx = 280,
-    items,
-    loading,
-    hasNext,
-    onLoadMore,
-    onClose,
-    onSelect,
-    onRemove,
-    onAddToPlan,
-  }) {
-    const sentinelRef = useRef(null);
-
-    useEffect(() => {
-      if (!hasNext || loading) return;
-      const el = sentinelRef.current;
-      if (!el) return;
-      const io = new IntersectionObserver((entries) => {
-        entries.forEach((e) => e.isIntersecting && onLoadMore());
-      });
-      io.observe(el);
-      return () => io.disconnect();
-    }, [hasNext, loading, onLoadMore]);
-
-    return (
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          position: "absolute",
-          left: 12,
-          right: 12,
-          bottom: "calc(env(safe-area-inset-bottom, 0px) + 12px)",
-          background: "#fff",
-          borderRadius: 16,
-          boxShadow: "0 10px 24px rgba(0,0,0,.2)",
-          zIndex: 3000,
-          display: "flex",
-          flexDirection: "column",
-          height: heightPx,
-          overflow: "hidden",
-        }}
-      >
-        {/* ヘッダー */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            padding: 12,
-            borderBottom: "1px solid #eee",
-          }}
-        >
-          <div style={{ fontWeight: 700, fontSize: 16 }}>行きたい場所リスト</div>
-          <div style={{ marginLeft: "auto", fontSize: 12, color: "#666" }}>
-            {items.length} 件{loading ? "（読込中…）" : ""}
-          </div>
-          <button
-            aria-label="close"
-            onClick={onClose}
-            style={{
-              marginLeft: 8,
-              background: "#f2f2f2",
-              border: "none",
-              width: 28,
-              height: 28,
-              borderRadius: 14,
-              cursor: "pointer",
-              fontWeight: 700,
-            }}
-          >
-            ×
-          </button>
-        </div>
-
-        {/* リスト（ここだけスクロール可） */}
-        <div style={{ flex: 1, overflowY: "auto", padding: 12, gap: 10, display: "grid" }}>
-          {items.length === 0 && !loading && (
-            <div style={{ color: "#666" }}>まだ保存がありません</div>
-          )}
-
-          {items.map((it) => (
-            <PlaceDetailCard
-              key={it.id}
-              variant="inline"
-              place={it.place}
-              thumbnailUrl={it.thumbnail_url}
-              isSaved={true}
-              isSaving={false}
-              // inline では onAdd は通常不要なので渡さない
-              onRemove={() => onRemove?.(it.id)}
-              onAddToPlan={() => onAddToPlan?.(it)}
-              // クリックで地図パン
-              onRootClick={() => onSelect(it)}
-              thumbWidth={110}
-              thumbHeight={90}
-            />
-          ))}
-
-          {/* 無限読み足しの番人 */}
-          <div ref={sentinelRef} style={{ height: 1 }} />
-          {loading && (
-            <div style={{ padding: "8px 0", textAlign: "center", color: "#666" }}>
-              読み込み中…
-            </div>
-          )}
-          {!hasNext && items.length > 0 && (
-            <div style={{ padding: "6px 0", textAlign: "center", color: "#999", fontSize: 12 }}>
-              以上です
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div style={{ height: (mapHeight ?? 400) + "px", width: "100%", position: "relative" }}>
+    <div style={{ height: `${mapHeight ?? 400}px`, width: "100%", position: "relative" }}>
       <div
         style={{
           position: "absolute",
@@ -382,10 +417,10 @@ const MapPreview = ({
           >
             <MapPopup
               title={placeName}
-              message={"行きたい場所リストに追加しますか？"}
+              message="行きたい場所リストに追加しますか？"
               confirmLabel={isSaving ? "保存中..." : "追加する"}
               cancelLabel="キャンセル"
-              confirmDisabled={isSaving || !currentVideo?.id || !selectedPlace?.place_id}
+              confirmDisabled={isSaving || !currentVideo?.id || !selectedPlace?.placeId}
               onConfirm={handleAddFavorite}
               onCancel={() => setIsPopupOpen(false)}
             />
@@ -405,7 +440,8 @@ const MapPreview = ({
             if (currentWishlistId) {
               handleRemoveWishlist(currentWishlistId);
             } else {
-              alert("削除対象のIDが取得できませんでした。")
+              // eslint-disable-next-line no-alert
+              alert("削除対象のIDが取得できませんでした。");
             }
           }}
           onAddToPlan={() => alert("旅行プランに追加（仮）")}
@@ -421,7 +457,7 @@ const MapPreview = ({
           items={wlItems}
           loading={wlLoading}
           hasNext={wlNext != null}
-          onLoadMore={() => loadWishlist()}
+          onLoadMore={handleLoadMore}
           onClose={handleCloseWishlist}
           onSelect={handleSelectWishlistItem}
           onRemove={handleRemoveWishlist}
@@ -430,6 +466,6 @@ const MapPreview = ({
       )}
     </div>
   );
-};
+}
 
 export default MapPreview;

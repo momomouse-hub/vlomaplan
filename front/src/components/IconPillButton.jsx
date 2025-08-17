@@ -17,7 +17,9 @@ function IconPillButton({
   const ignoreClickUntilRef = useRef(0);
 
   useEffect(() => {
-    if (!expanded) return;
+    if (!expanded) {
+      return () => { };
+    }
     const onDocPointerDown = (e) => {
       if (lastPointerTypeRef.current !== "touch") return;
       if (!rootRef.current) return;
@@ -70,8 +72,9 @@ function IconPillButton({
   };
 
   const handleClick = () => {
-    if (Date.now() < ignoreClickUntilRef.current) return;
-    onAction?.();
+    if (Date.now() >= ignoreClickUntilRef.current) {
+      onAction?.();
+    }
   };
 
   const handleKeyDown = (e) => {

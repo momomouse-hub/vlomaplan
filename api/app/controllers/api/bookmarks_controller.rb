@@ -40,10 +40,10 @@ class Api::BookmarksController < ApplicationController
   private
 
   def vv_params
-    params.require(:video_view).permit(:youtube_video_id, :title, :thumbnail_url, :search_history_id)
+    params.expect(video_view: [:youtube_video_id, :title, :thumbnail_url, :search_history_id])
   end
 
   def place_params
-    params.require(:place).permit(:place_id, :name, :address, :latitude, :longitude)
+    params.expect(place: [:place_id, :name, :address, :latitude, :longitude])
   end
 end

@@ -1,4 +1,4 @@
-const MapSearchBar = ({ onFocus }) => {
+function MapSearchBar({ onFocus }) {
   return (
     <div style={{ display: "flex"}}>
       <input
@@ -17,6 +17,6 @@ const MapSearchBar = ({ onFocus }) => {
       />
     </div>
   );
-};
+}
 
 export default MapSearchBar;

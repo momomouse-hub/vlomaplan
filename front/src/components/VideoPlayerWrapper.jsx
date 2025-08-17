@@ -1,6 +1,6 @@
 import ReactPlayer from "react-player";
 
-const VideoPlayerWrapper = ({ videoId }) => {
+function VideoPlayerWrapper({ videoId }) {
   return (
     <div style={{ position: "relative", paddingTop: "56.25%", width: "100%" }}>
       <ReactPlayer
@@ -12,6 +12,6 @@ const VideoPlayerWrapper = ({ videoId }) => {
       />
     </div>
   );
-};
+}
 
 export default VideoPlayerWrapper;

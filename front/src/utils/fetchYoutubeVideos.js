@@ -1,6 +1,5 @@
 const fetchYoutubeVideos = async (keyword) => {
   const API_KEY = import.meta.env.VITE_YOUTUBE_API_KEY;
-  console.log('Fetching from API:search'); // search API呼び出し前
 
   const searchRes = await fetch(
     `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(keyword)}&type=video&maxResults=50&key=${API_KEY}`
@@ -10,8 +9,6 @@ const fetchYoutubeVideos = async (keyword) => {
 
   const videoIds = searchData.items.map((item) => item.id.videoId).join(",");
   const channelIds = [...new Set(searchData.items.map((item) => item.snippet.channelId))].join(",");
-
-  console.log('Fetching from API: videos') // videos API呼び出し前
 
   const videoDetailsRes = await fetch(
     `https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics,contentDetails,status&id=${videoIds}&key=${API_KEY}`
@@ -39,8 +36,6 @@ const fetchYoutubeVideos = async (keyword) => {
       duration: video.contentDetails.duration,
       viewCount: video.statistics.viewCount,
     }))
-
-  console.log('Fetching from API: channels') // channels API呼び出し前
 
   const channelDetailsRes = await fetch(
     `https://www.googleapis.com/youtube/v3/channels?part=snippet,statistics&id=${channelIds}&key=${API_KEY}`

@@ -2,7 +2,7 @@ import { useState, useCallback } from "react";
 import { useMapsLibrary } from "@vis.gl/react-google-maps";
 import { useAutocompleteSuggestions } from "../hooks/useAutocompleteSuggestions";
 
-const PlaceAutocomplete = ({ onPlaceSelect }) => {
+function PlaceAutocomplete({ onPlaceSelect }) {
   useMapsLibrary("places");
 
   const [inputValue, setInputValue] = useState("");
@@ -41,7 +41,7 @@ const PlaceAutocomplete = ({ onPlaceSelect }) => {
     const lat = typeof place.location?.lat === "function" ? place.location.lat() : place.location?.lat;
     const lng = typeof place.location?.lng === "function" ? place.location.lng() : place.location?.lng;
     onPlaceSelect({
-      place_id: place.id,
+      placeId: place.id,
       name: place.displayName,
       address: place.formattedAddress,
       latitude: lat,
@@ -68,23 +68,38 @@ const PlaceAutocomplete = ({ onPlaceSelect }) => {
           borderRadius: "8px",
         }}
       />
-      <ul style={{ listStyle: "none", margin: 0, padding: "0" }}>
-        {suggestions.map((s, idx) => (
-          <li
-            key={idx}
-            style={{
-              padding: "8px 12px",
-              cursor: "pointer",
-              borderBottom: "1px solid #eee",
-            }}
-            onClick={() => handleSelect(s)}
-          >
-            {s.placePrediction?.text?.text}
-          </li>
-        ))}
+      <ul role="listbox" style={{ listStyle: "none", margin: 0, padding: "0" }}>
+        {suggestions.map((s) => {
+          const key =
+            s.placePrediction?.id ??
+            s.placePrediction?.placeId ??
+            s.placePrediction?.text?.text;
+          return (
+            <li key={key} role="presentation" style={{ borderBottom: "1px solid #eee" }}>
+              <button
+                type="button"
+                role="option"
+                aria-selected="false"
+                onClick={() => handleSelect(s)}
+                style={{
+                  display: "block",
+                  width: "100%",
+                  textAlign: "left",
+                  padding: "8px 12px",
+                  background: "transparent",
+                  border: "none",
+                  cursor: "pointer",
+                }}
+                aria-label={s.placePrediction?.text?.text}
+              >
+                {s.placePrediction?.text?.text}
+              </button>
+            </li>
+          );
+        })}
       </ul>
     </div>
   );
-};
+}
 
 export default PlaceAutocomplete;

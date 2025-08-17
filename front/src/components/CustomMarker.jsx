@@ -1,13 +1,15 @@
 import { useEffect, useRef } from "react";
 import { useMap, useMapsLibrary } from "@vis.gl/react-google-maps";
 
-const CustomMarker = ({ position, isFavorite, onClick }) => {
+function CustomMarker({ position, isFavorite, onClick }) {
   const map = useMap();
   const markerLib = useMapsLibrary("marker");
   const markerRef = useRef(null);
 
   useEffect(() => {
-    if (!map || !markerLib) return;
+    if (!map || !markerLib) {
+      return () => { };
+    }
 
     const { PinElement, AdvancedMarkerElement } = markerLib;
 
@@ -49,6 +51,6 @@ const CustomMarker = ({ position, isFavorite, onClick }) => {
   }, [map, markerLib, position, isFavorite, onClick]);
 
   return null;
-};
+}
 
 export default CustomMarker;

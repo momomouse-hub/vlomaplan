@@ -3,7 +3,7 @@ import VideoPlayerWrapper from "../VideoPlayerWrapper";
 import VideoItem from "../VideoItem";
 import MapPreview from "../MapPreview";
 
-const DesktopLayout = ({ id, relatedVideos, channels, position }) => {
+function DesktopLayout({ id, relatedVideos, channels, position }) {
   const navigate = useNavigate();
 
   return (
@@ -32,6 +32,6 @@ const DesktopLayout = ({ id, relatedVideos, channels, position }) => {
       </div>
     </div>
   );
-};
+}
 
 export default DesktopLayout;

@@ -1,4 +1,4 @@
-const MapPopup = ({
+function MapPopup({
   title,
   message,
   onConfirm,
@@ -6,7 +6,7 @@ const MapPopup = ({
   confirmLabel = "追加する",
   cancelLabel = "キャンセル",
   confirmDisabled = false,
-}) => {
+}) {
   return (
     <div
       style={{
@@ -35,6 +35,7 @@ const MapPopup = ({
         <p style={{ fontSize: "14px", margin: "0 0 16px" }}>{message}</p>
 
         <button
+          type="button"
           disabled={confirmDisabled}
           style={{
             backgroundColor: "#2ca478",
@@ -56,6 +57,7 @@ const MapPopup = ({
         <br />
 
         <button
+          type="button"
           style={{
             backgroundColor: "#f0f0f0",
             color: "#888",
@@ -72,6 +74,6 @@ const MapPopup = ({
       </div>
     </div>
   );
-};
+}
 
 export default MapPopup;

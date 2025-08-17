@@ -1,6 +1,6 @@
 import VideoItem from "./VideoItem";
 
-const RelatedVideoList = ({ videos, channels, onClick }) => {
+function RelatedVideoList({ videos, channels, onClick }) {
   return (
     <>
       <h3>関連動画</h3>
@@ -16,6 +16,6 @@ const RelatedVideoList = ({ videos, channels, onClick }) => {
       </div>
     </>
   );
-};
+}
 
 export default RelatedVideoList;
