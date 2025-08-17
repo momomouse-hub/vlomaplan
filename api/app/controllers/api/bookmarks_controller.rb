@@ -1,58 +1,44 @@
 class Api::BookmarksController < ApplicationController
   def create
-    ActiveRecord::Base.transaction do
-      vv = VideoView.find_or_initialize_by(youtube_video_id: vv_params[:youtube_video_id])
-      vv.assign_attributes(
-        title: vv_params[:title],
-        thumbnail_url: vv_params[:thumbnail_url],
-        search_history_id: vv_params[:search_history_id]
-      )
-      vv.save!
+    ApplicationRecord.transaction do
+      vv_attrs = vv_params
+      pl_attrs = place_params
 
-      place = Place.find_or_initialize_by(place_id: place_params[:place_id])
-      place.assign_attributes(
-        name: place_params[:name],
-        address: place_params[:address],
-        latitude: place_params[:latitude],
-        longitude: place_params[:longitude]
-      )
-      place.save!
-
-      VideoViewPlace.create_or_find_by!(video_view: vv, place: place)
-
-      Wishlist.create_or_find_by!(user: current_user, place: place) do |w|
-        w.created_at = Time.current
+      video_view = VideoView.find_or_create_by!(youtube_video_id: vv_attrs[:youtube_video_id]) do |vv|
+        vv.title             = vv_attrs[:title]
+        vv.thumbnail_url     = vv_attrs[:thumbnail_url]
+        vv.search_history_id = vv_attrs[:search_history_id]
       end
 
+      place = Place.find_or_create_by!(place_id: pl_attrs[:place_id]) do |p|
+        p.name      = pl_attrs[:name]
+        p.address   = pl_attrs[:address]
+        p.latitude  = pl_attrs[:latitude]
+        p.longitude = pl_attrs[:longitude]
+      end
+
+      VideoViewPlace.find_or_create_by!(video_view: video_view, place: place)
+
+      wishlist = Wishlist.find_or_create_by!(user: current_user, place: place)
+
       render json: {
-        video_view: { id: vv.id, youtube_video_id: vv.youtube_video_id },
-        place: { id: place.id, place_id: place.place_id, name: place.name },
-        wishlist: { saved: true }  
-      }
+        video_view: { id: video_view.id, youtube_video_id: video_view.youtube_video_id },
+        place: {
+          id: place.id, place_id: place.place_id,
+          name: place.name, address: place.address,
+          latitude: place.latitude, longitude: place.longitude
+        },
+        wishlist: { id: wishlist.id, saved: true }
+      }, status: :ok
     end
-  rescue ActiveRecord::RecordInvalid => e
-    render json: { error: e.record.errors.full_messages }, status: :unprocessable_entity
-  end
-
-  def place_status
-    pid = params.require(:place_id)
-    place = Place.find_by(place_id: pid)
-
-    count = place ? place.video_view_places.count : 0
-
-    thumb = nil
-    if place && count > 0
-      vvp = place.video_view_places
-                .includes(:video_view)
-                .order(created_at: :desc)
-                .first
-      thumb = vvp&.video_view&.thumbnail_url
-    end
-
-    render json: { saved: count > 0, count: count, thumbnail_url: thumb }
+  rescue ActionController::ParameterMissing => e
+    render json: { error: e.message }, status: :bad_request
+  rescue ActiveRecord::RecordInvalid, ActiveRecord::RecordNotUnique => e
+    render json: { error: e.message }, status: :unprocessable_entity
   end
 
   private
+
   def vv_params
     params.require(:video_view).permit(:youtube_video_id, :title, :thumbnail_url, :search_history_id)
   end
