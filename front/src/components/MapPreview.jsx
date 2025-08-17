@@ -5,7 +5,7 @@ import IconPillButton from "./IconPillButton";
 import MapPopup from "./MapPopup";
 import PlaceDetailCard from "./PlaceDetailCard";
 import { createBookmark } from "../api/bookmarks";
-import { totalCountWishlists, wishlistsStatus, listWishlists } from "../api/wishlists";
+import { totalCountWishlists, wishlistsStatus, listWishlists, deleteWishlist } from "../api/wishlists";
 
 const MapPreview = ({
   position,
@@ -36,6 +36,7 @@ const MapPreview = ({
   const prevH = useRef(mapHeight);
 
   const [placeThumbUrl, setPlaceThumbUrl] = useState(null);
+  const [currentWishlistId, setCurrentWishlistId] = useState(null);
 
   // ▼ Wishlist 読み込み
   const loadWishlist = useCallback(
@@ -86,13 +87,24 @@ const MapPreview = ({
     [map]
   );
 
-  // ▼ 削除（仮実装：まずは表示確認）
-  const handleRemoveWishlist = useCallback((id) => {
-    console.log("[Wishlist] remove click:", id);
-    alert(`削除（仮）: id=${id}`);
-  }, []);
-
   // ▼ 旅行プランに追加（仮実装）
+  const handleRemoveWishlist = useCallback(async (id) => {
+    try {
+      await deleteWishlist(id);
+      setWlItems((prev) => prev.filter((it) => it.id !== id));
+      setTotalFavCount((c) => Math.max(0, (c || 0) - 1));
+      if (currentWishlistId && currentWishlistId === id) {
+        setIsSavedGlobally(false);
+        setShowDetail(false);
+        setCurrentWishlistId(null);
+      }
+    } catch (e) {
+      console.error(e);
+      alert("削除に失敗しました。");
+    }
+  }, [currentWishlistId]);
+
+  // ▼ 削除（仮実装：まずは表示確認）
   const handleAddToPlanFromWishlist = useCallback((item) => {
     console.log("[Wishlist] add-to-plan click:", item);
     alert(`旅行プランに追加（仮）: ${item.place?.name ?? "(no name)"}`);
@@ -128,13 +140,15 @@ const MapPreview = ({
     if (!pid) return;
     (async () => {
       try {
-        const { saved, thumbnail_url } = await wishlistsStatus({ place_id: pid });
+        const { saved, thumbnail_url, wishlist_id } = await wishlistsStatus({ place_id: pid });
         setIsSavedGlobally(!!saved);
         setPlaceThumbUrl(thumbnail_url || null);
+        setCurrentWishlistId(wishlist_id ?? null);
       } catch (e) {
         console.warn("place_status init failed:", e);
         setIsSavedGlobally(false);
         setPlaceThumbUrl(null);
+        setCurrentWishlistId(null);
       }
     })();
   }, [selectedPlace?.place_id]);
@@ -168,7 +182,12 @@ const MapPreview = ({
       try {
         const { total_count } = await totalCountWishlists();
         setTotalFavCount(Number(total_count || 0));
-      } catch {}
+      } catch { }
+      try {
+        const { wishlist_id, thumbnail_url } = await wishlistsStatus({ place_id: selectedPlace.place_id });
+        setCurrentWishlistId(wishlist_id ?? null);
+        if (thumbnail_url) setPlaceThumbUrl(thumbnail_url);
+      } catch { }
       setIsPopupOpen(false);
       setShowDetail(true);
       onRequestExpand?.();
@@ -382,7 +401,13 @@ const MapPreview = ({
           isSaved
           isSaving={isSaving}
           onAdd={undefined}
-          onRemove={undefined}
+          onRemove={() => {
+            if (currentWishlistId) {
+              handleRemoveWishlist(currentWishlistId);
+            } else {
+              alert("削除対象のIDが取得できませんでした。")
+            }
+          }}
           onAddToPlan={() => alert("旅行プランに追加（仮）")}
           onClose={() => setShowDetail(false)}
           thumbWidth={120}

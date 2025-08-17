@@ -23,3 +23,10 @@ export async function listWishlists({ page = 1, per = 20 } = {}) {
   if (!res.ok) throw new Error(`listWishlists failed: ${res.status}`);
   return res.json();
 }
+
+export async function deleteWishlist(id) {
+  const res = await apiFetch(`${base}/api/wishlists/${id}`, { method: "DELETE" });
+  if (!res.ok && res.status !== 204) {
+    throw new Error(`deleteWishlist failed: ${res.status}`);
+  }
+}
