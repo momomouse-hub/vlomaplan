@@ -14,3 +14,12 @@ export async function totalCountWishlists() {
   if (!res.ok) throw new Error("totalCountWishlists failed");
   return res.json();
 }
+
+export async function listWishlists({ page = 1, per = 20 } = {}) {
+  const url = new URL(`${base}/api/wishlists`);
+  url.searchParams.set("page", page);
+  url.searchParams.set("per", per);
+  const res = await apiFetch(url.toString());
+  if (!res.ok) throw new Error(`listWishlists failed: ${res.status}`);
+  return res.json();
+}
