@@ -18,4 +18,34 @@ class Api::WishlistsController < ApplicationController
     cnt = Wishlist.where(user: current_user).count
     render json: { total_count: cnt }
   end
+
+  def index
+    base = Wishlist.where(user: current_user).includes(place: { video_view_places: :video_view}).order(created_at: :desc)
+    @pagy, records = pagy_countless(base)
+
+    items = records.map do |w|
+      place = w.place
+      latest_vvp = place.video_view_places.max_by(&:created_at)
+      thumb = latest_vvp&.video_view&.thumbnail_url
+
+      {
+        id: w.id,
+        created_at: w.created_at,
+        place: {
+          id: place.id,
+          place_id: place.place_id,
+          name: place.name,
+          address: place.address,
+          latitude: place.latitude,
+          longitude: place.longitude
+        },
+        thumbnail_url: thumb
+      }
+    end
+
+    render json: {
+      items: items,
+      pagination: pagy_metadata(@pagy)
+    }
+  end
 end
