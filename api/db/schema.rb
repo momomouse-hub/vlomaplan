@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_08_14_125246) do
+ActiveRecord::Schema[8.0].define(version: 2025_09_20_080931) do
   create_table "places", charset: "utf8mb4", collation: "utf8mb4_0900_ai_ci", force: :cascade do |t|
     t.string "name", null: false
     t.string "address", null: false
@@ -20,6 +20,16 @@ ActiveRecord::Schema[8.0].define(version: 2025_08_14_125246) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["place_id"], name: "index_places_on_place_id", unique: true
+  end
+
+  create_table "user_credentials", charset: "utf8mb4", collation: "utf8mb4_unicode_ci", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.string "email", null: false
+    t.string "password_digest", limit: 60, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["email"], name: "index_user_credentials_on_email", unique: true
+    t.index ["user_id"], name: "index_user_credentials_on_user_id", unique: true
   end
 
   create_table "user_visits", charset: "utf8mb4", collation: "utf8mb4_unicode_ci", force: :cascade do |t|
@@ -64,6 +74,7 @@ ActiveRecord::Schema[8.0].define(version: 2025_08_14_125246) do
     t.index ["user_id"], name: "index_wishlists_on_user_id"
   end
 
+  add_foreign_key "user_credentials", "users"
   add_foreign_key "user_visits", "users"
   add_foreign_key "video_view_places", "places"
   add_foreign_key "video_view_places", "video_views"
