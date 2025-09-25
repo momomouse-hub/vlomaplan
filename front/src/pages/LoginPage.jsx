@@ -35,14 +35,14 @@ export default function LoginPage() {
     <div style={{ maxWidth: 420 }}>
       <h2>ログイン</h2>
       <form onSubmit={onLogin}>
-        <label>メールアドレス</label>
-        <input value={email} onChange={(e) => setEmail(e.target.value)} required />
-        <label>パスワード</label>
-        <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+        <label htmlFor="login-email">メールアドレス</label>
+        <input id="login-email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+        <label htmlFor="login-password">パスワード</label>
+        <input id="login-password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
         <button type="submit">ログイン</button>
       </form>
       <hr />
-      <button onClick={onLogout}>ログアウト</button>
+      <button type="button" onClick={onLogout}>ログアウト</button>
       <p>{msg}</p>
     </div>
   );

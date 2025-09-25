@@ -30,12 +30,12 @@ export default function RegisterPage() {
   return (
     <form onSubmit={onSubmit} style={{ maxWidth: 420 }}>
       <h2>アカウント作成</h2>
-      <label>メールアドレス</label>
-      <input value={email} onChange={(e) => setEmail(e.target.value)} required />
-      <label>パスワード</label>
-      <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
-      <label>パスワード（確認）</label>
-      <input type="password" value={password2} onChange={(e) => setPassword2(e.target.value)} required />
+      <label htmlFor="reg-email">メールアドレス</label>
+      <input id="reg-email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+      <label htmlFor="reg-password">パスワード</label>
+      <input id="reg-password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+      <label htmlFor="reg-password2">パスワード（確認）</label>
+      <input id="reg-password2" type="password" value={password2} onChange={(e) => setPassword2(e.target.value)} required />
       <button type="submit">登録</button>
       <p>{msg}</p>
     </form>

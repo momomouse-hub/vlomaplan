@@ -1,11 +1,9 @@
 class Api::RegistrationsController < ApplicationController
   def create
     ApplicationRecord.transaction do
-    ensure_visitor if current_user.nil?
+      ensure_visitor if current_user.nil?
 
-      if current_user.user_credential.present?
-        render json: { error: "already_registered" }, status: :conflict and return
-      end
+      render json: { error: "already_registered" }, status: :conflict and return if current_user.user_credential.present?
 
       uc = current_user.build_user_credential(registration_params)
       uc.save!
@@ -26,6 +24,7 @@ class Api::RegistrationsController < ApplicationController
     return "email_unavailable" if record.errors.added?(:email, :taken)
     return "password_confirmation_mismatch" if record.errors.added?(:password_confirmation, :confirmation)
     return "weak_password" if record.errors.added?(:password, :too_short)
+
     "invalid_parameters"
   end
 end

@@ -21,6 +21,10 @@
     "import/prefer-default-export": "off",
     "no-console": ["warn", { "allow": ["warn", "error"] }],
     "no-alert": "warn",
-    "react/no-unstable-nested-components": "warn"
+    "react/no-unstable-nested-components": "warn",
+    "jsx-a11y/label-has-associated-control": [
+      "error",
+      { "assert": "htmlFor", "depth": 5 }
+    ]
   }
 }

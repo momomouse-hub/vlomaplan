@@ -4,9 +4,7 @@ class Api::SessionsController < ApplicationController
     password = params.require(:password)
 
     uc = UserCredential.find_by(email: email)
-    unless uc&.authenticate(password)
-      render json: { error: "invalid_credentials" }, status: :unauthorized and return
-    end
+    render json: { error: "invalid_credentials" }, status: :unauthorized and return unless uc&.authenticate(password)
 
     user = uc.user
     token = SecureRandom.uuid
@@ -21,10 +19,8 @@ class Api::SessionsController < ApplicationController
   end
 
   def destroy
-    if visitor_token.present?
-      if (uv = UserVisit.find_by(token: visitor_token))
-        uv.destroy
-      end
+    if visitor_token.present? && (uv = UserVisit.find_by(token: visitor_token))
+      uv.destroy
     end
     head :no_content
   end
