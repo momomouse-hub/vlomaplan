@@ -9,22 +9,21 @@ module IdentifiesUser
   private
 
   def identify_user
-    token = request.headers['X-Visitor-Token'].presence
-    @visitor_token = token
-
-    if token
-      uv = UserVisit.includes(:user).find_by(token: token)
-      if uv
-        @current_user = uv.user
-      else
-        create_user_and_visit!(token)
-      end
+    @visitor_token = request.headers['X-Visitor-Token'].presence
+    if @visitor_token
+      uv = UserVisit.includes(:user).find_by(token: @visitor_token)
+      @current_user = uv&.user
     else
-      token = SecureRandom.uuid
-      create_user_and_visit!(token)
-      @visitor_token = token
+      @current_user = nil
     end
+  end
 
+  def ensure_visitor
+    return if current_user.present?
+
+    token = SecureRandom.uuid
+    create_user_and_visit!(token)
+    @visitor_token = token
     response.set_header('X-Visitor-Token', @visitor_token)
   end
 

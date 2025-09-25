@@ -3,9 +3,11 @@ import "./App.css";
 import TopLayout from "./components/layouts/TopLayout";
 import MainLayout from "./components/layouts/MainLayout";
 import TopPage from "./pages/TopPage";
-import Homepage from "./pages/HomePage";
+import HomePage from "./pages/HomePage";
 import SearchResultPage from "./pages/SearchResultPage";
 import VideoDetailPage from "./pages/VideoDetailPage";
+import LoginPage from "./pages/LoginPage";
+import RegisterPage from "./pages/RegisterPage";
 
 function App() {
   return (
@@ -13,7 +15,9 @@ function App() {
       <Routes>
         <Route element={<TopLayout />}>
           <Route path="/" element={<TopPage />} />
-          <Route path="/home" element={<Homepage />} />
+          <Route path="/home" element={<HomePage />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
         </Route>
         <Route element={<MainLayout />}>
           <Route path="/search" element={<SearchResultPage />} />

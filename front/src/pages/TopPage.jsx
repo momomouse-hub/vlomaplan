@@ -6,7 +6,6 @@ function TopPage() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
-  const [notice, setNotice] = useState("");
 
   const handleStart = async () => {
     try {
@@ -58,7 +57,7 @@ function TopPage() {
           border: "2px solid #2CA478",
           fontWeight: 700,
         }}
-        onClick={() => setNotice("（将来）ユーザー登録は準備中です")}
+        onClick={() => navigate("/register")}
       >
         ユーザー登録
       </button>
@@ -74,7 +73,7 @@ function TopPage() {
           color: "#fff",
           fontWeight: 700,
         }}
-        onClick={() => setNotice("（将来）ログインは準備中です")}
+        onClick={() => navigate("/login")}
       >
         ログイン
       </button>
@@ -82,11 +81,6 @@ function TopPage() {
       {errorMsg && (
         <p role="alert" style={{ marginTop: 12, color: "#b00020" }}>
           {errorMsg}
-        </p>
-      )}
-      {notice && (
-        <p role="status" aria-live="polite" style={{ marginTop: 8, color: "#555" }}>
-          {notice}
         </p>
       )}
 
