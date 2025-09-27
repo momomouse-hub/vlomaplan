@@ -12,9 +12,10 @@ import {
   deleteWishlist,
 } from "../api/wishlists";
 
-// ==== MapPreviewの外に切り出し（安定化 & ESLint対策）====
+/* ==== 下部リスト（オーバーレイ） ==== */
 function WishlistPanel({
   heightPx = 280,
+  bottomOffset = "clamp(24px, 6vh, 64px)", // 追加：下からの持ち上げ量
   items,
   loading,
   hasNext,
@@ -27,15 +28,9 @@ function WishlistPanel({
   const sentinelRef = useRef(null);
 
   useEffect(() => {
-    if (!hasNext || loading) {
-      // 早期 return のときもクリーンアップ関数を返す（consistent-return対策）
-      return () => {};
-    }
+    if (!hasNext || loading) return () => {};
     const el = sentinelRef.current;
-    if (!el) {
-      // 一貫してクリーンアップ関数を返す
-      return () => {};
-    }
+    if (!el) return () => {};
     const io = new IntersectionObserver((entries) => {
       entries.forEach((e) => {
         if (e.isIntersecting) onLoadMore();
@@ -55,16 +50,16 @@ function WishlistPanel({
       }}
       style={{
         position: "absolute",
-        left: 12,
-        right: 12,
-        bottom: "calc(env(safe-area-inset-bottom, 0px) + 12px)",
+        left: "2.5%",
+        right: "2.5%",
+        bottom: `calc(env(safe-area-inset-bottom, 0px) + ${bottomOffset})`,
         background: "#fff",
         borderRadius: 16,
         boxShadow: "0 10px 24px rgba(0,0,0,.2)",
         zIndex: 3000,
         display: "flex",
         flexDirection: "column",
-        height: heightPx,
+        height: heightPx ? heightPx : "50vh",
         overflow: "hidden",
       }}
     >
@@ -101,7 +96,7 @@ function WishlistPanel({
         </button>
       </div>
 
-      {/* リスト（ここだけスクロール可） */}
+      {/* リスト */}
       <div style={{ flex: 1, overflowY: "auto", padding: 12, gap: 10, display: "grid" }}>
         {items.length === 0 && !loading && <div style={{ color: "#666" }}>まだ保存がありません</div>}
 
@@ -113,43 +108,30 @@ function WishlistPanel({
             thumbnailUrl={it.thumbnailUrl}
             isSaved
             isSaving={false}
-            onRemove={() => {
-              onRemove?.(it.id);
-            }}
-            onAddToPlan={() => {
-              onAddToPlan?.(it);
-            }}
-            onRootClick={() => {
-              onSelect(it);
-            }}
-            thumbWidth={110}
-            thumbHeight={90}
+            onRemove={() => onRemove?.(it.id)}
+            onAddToPlan={() => onAddToPlan?.(it)}
+            onRootClick={() => onSelect(it)}
           />
         ))}
 
-        {/* 無限読み足しの番人 */}
         <div ref={sentinelRef} style={{ height: 1 }} />
-        {loading && (
-          <div style={{ padding: "8px 0", textAlign: "center", color: "#666" }}>読み込み中…</div>
-        )}
+        {loading && <div style={{ padding: "8px 0", textAlign: "center", color: "#666" }}>読み込み中…</div>}
         {!hasNext && items.length > 0 && (
-          <div style={{ padding: "6px 0", textAlign: "center", color: "#999", fontSize: 12 }}>
-            以上です
-          </div>
+          <div style={{ padding: "6px 0", textAlign: "center", color: "#999", fontSize: 12 }}>以上です</div>
         )}
       </div>
     </div>
   );
 }
 
-// ================= MapPreview =================
+/* ================= MapPreview ================= */
 function MapPreview({
   position,
   placeName,
   selectedPlace,
   currentVideo,
   onRequestExpand,
-  mapHeight,
+  mapHeight, // 後方互換：未指定なら 100%
 }) {
   const [isPopupOpen, setIsPopupOpen] = useState(false);
   const [showDetail, setShowDetail] = useState(false);
@@ -157,7 +139,7 @@ function MapPreview({
   // ▼ Wishlist パネル用
   const [showWishlist, setShowWishlist] = useState(false);
   const [wlItems, setWlItems] = useState([]);
-  const [wlNext, setWlNext] = useState(1); // 次に読む page（null なら終端）
+  const [wlNext, setWlNext] = useState(1);
   const [wlLoading, setWlLoading] = useState(false);
   const WL_PER = 10;
 
@@ -174,7 +156,6 @@ function MapPreview({
   const [placeThumbUrl, setPlaceThumbUrl] = useState(null);
   const [currentWishlistId, setCurrentWishlistId] = useState(null);
 
-  // ▼ Wishlist 読み込み
   const loadWishlist = useCallback(
     async (page = wlNext, per = WL_PER) => {
       if (wlLoading || page == null) return;
@@ -192,40 +173,28 @@ function MapPreview({
     [wlLoading, wlNext]
   );
 
-  // ← ここを修正（no-void対策）
-  const handleLoadMore = useCallback(() => {
-    loadWishlist();
-  }, [loadWishlist]);
+  const handleLoadMore = useCallback(() => loadWishlist(), [loadWishlist]);
 
-  // ▼ ピルクリック：モーダル最大化→パネル表示→未取得なら1ページ読む
   const handleOpenWishlist = useCallback(async () => {
     onRequestExpand?.();
     setShowWishlist(true);
     setIsPopupOpen(false);
     setShowDetail(false);
-    if (wlItems.length === 0) {
-      await loadWishlist(1, WL_PER);
-    }
+    if (wlItems.length === 0) await loadWishlist(1, WL_PER);
   }, [wlItems.length, loadWishlist, onRequestExpand]);
 
-  const handleCloseWishlist = useCallback(() => {
-    setShowWishlist(false);
-  }, []);
+  const handleCloseWishlist = useCallback(() => setShowWishlist(false), []);
 
-  // ▼ リストアイテム選択時：地図をその場所へパンしてパネルを閉じる
   const handleSelectWishlistItem = useCallback(
     (it) => {
       const lat = Number(it?.place?.latitude);
       const lng = Number(it?.place?.longitude);
-      if (Number.isFinite(lat) && Number.isFinite(lng) && map) {
-        map.panTo({ lat, lng });
-      }
+      if (Number.isFinite(lat) && Number.isFinite(lng) && map) map.panTo({ lat, lng });
       setShowWishlist(false);
     },
     [map]
   );
 
-  // ▼ 削除
   const handleRemoveWishlist = useCallback(
     async (id) => {
       try {
@@ -239,22 +208,18 @@ function MapPreview({
         }
       } catch (e) {
         console.error(e);
-        // eslint-disable-next-line no-alert
         alert("削除に失敗しました。");
       }
     },
     [currentWishlistId]
   );
 
-  // ▼ 旅行プランに追加（仮）
   const handleAddToPlanFromWishlist = useCallback((item) => {
-    // eslint-disable-next-line no-console
     console.log("[Wishlist] add-to-plan click:", item);
-    // eslint-disable-next-line no-alert
     alert(`旅行プランに追加（仮）: ${item.place?.name ?? "(no name)"}`);
   }, []);
 
-  // 地図高さ変化時のパン
+  // mapHeight 変化時のパン（後方互換）
   useEffect(() => {
     if (!map) return;
     const oldH = prevH.current;
@@ -278,7 +243,7 @@ function MapPreview({
     })();
   }, []);
 
-  // 選択中placeの保存状態とサムネ初期化
+  // place の保存状態とサムネ初期化
   useEffect(() => {
     const pid = selectedPlace?.placeId;
     if (!pid) return;
@@ -326,32 +291,35 @@ function MapPreview({
       try {
         const { totalCount } = await totalCountWishlists();
         setTotalFavCount(Number(totalCount || 0));
-      } catch (e) {
-        /* no-op */
-      }
+      } catch {}
       try {
         const { wishlistId, thumbnailUrl } = await wishlistsStatus({
           placeId: selectedPlace.placeId,
         });
         setCurrentWishlistId(wishlistId ?? null);
         if (thumbnailUrl) setPlaceThumbUrl(thumbnailUrl);
-      } catch (e) {
-        /* no-op */
-      }
+      } catch {}
       setIsPopupOpen(false);
       setShowDetail(true);
       onRequestExpand?.();
     } catch (e) {
       console.error(e);
-      // eslint-disable-next-line no-alert
       alert("保存に失敗しました。通信状況をご確認ください。");
     } finally {
       setIsSaving(false);
     }
   };
 
+  const containerHeight =
+    mapHeight != null
+      ? typeof mapHeight === "number"
+        ? `${mapHeight}px`
+        : mapHeight
+      : "100%";
+
   return (
-    <div style={{ height: `${mapHeight ?? 400}px`, width: "100%", position: "relative" }}>
+    <div style={{ height: containerHeight, width: "100%", position: "relative" }}>
+      {/* 右上のアクション */}
       <div
         style={{
           position: "absolute",
@@ -379,6 +347,7 @@ function MapPreview({
         />
       </div>
 
+      {/* Google Map */}
       <Map
         defaultCenter={position}
         defaultZoom={14}
@@ -428,6 +397,7 @@ function MapPreview({
         )}
       </Map>
 
+      {/* 下部の詳細カード（保存済み） */}
       {showDetail && isSavedGlobally && (
         <PlaceDetailCard
           variant="overlay"
@@ -440,7 +410,6 @@ function MapPreview({
             if (currentWishlistId) {
               handleRemoveWishlist(currentWishlistId);
             } else {
-              // eslint-disable-next-line no-alert
               alert("削除対象のIDが取得できませんでした。");
             }
           }}
@@ -448,12 +417,15 @@ function MapPreview({
           onClose={() => setShowDetail(false)}
           thumbWidth={120}
           thumbHeight={100}
+          // ここで少し上に浮かせる
+          overlayOffset="clamp(24px, 5vh, 56px)"
         />
       )}
 
+      {/* お気に入りリスト（シート内にかぶせる） */}
       {showWishlist && (
         <WishlistPanel
-          heightPx={Math.min(520, Math.max(260, Math.floor((mapHeight ?? 400) * 0.65)))} // 画面に応じて可変
+          bottomOffset="clamp(24px, 6vh, 64px)"
           items={wlItems}
           loading={wlLoading}
           hasNext={wlNext != null}

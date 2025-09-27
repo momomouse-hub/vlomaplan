@@ -7,15 +7,29 @@ function DesktopLayout({ id, relatedVideos, channels, position }) {
   const navigate = useNavigate();
 
   return (
-    <div style={{ display: "flex", flexDirection: "row", height: "100vh" }}>
-      <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
-        <h2>動画再生ページ</h2>
-        <div style={{ flex: "0 0 300px" }}>
+    <div
+      className="layout-desktop"
+      style={{
+        display: "grid",
+        gridTemplateColumns: "1fr 1fr",
+        gap: "2%",
+        height: "100dvh",
+      }}
+    >
+      <section
+        style={{
+          minWidth: 0,
+          minHeight: 0,
+          display: "flex",
+          flexDirection: "column",
+        }}
+      >
+        <div style={{ width: "100%", aspectRatio: "16/9" }}>
           <VideoPlayerWrapper videoId={id} />
         </div>
 
-        <h3>関連動画</h3>
-        <div style={{ flex: 1, overflowY: "auto" }}>
+        <h3 style={{ marginTop: "1rem" }}>関連動画</h3>
+        <div style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
           {relatedVideos.map((video) => (
             <VideoItem
               key={video.id}
@@ -25,11 +39,19 @@ function DesktopLayout({ id, relatedVideos, channels, position }) {
             />
           ))}
         </div>
-      </div>
+      </section>
 
-      <div style={{ width: "400px", marginLeft: "16px", height: "100vh" }}>
-        <MapPreview position={position} />
-      </div>
+      <aside
+        style={{
+          minWidth: 0,
+          minHeight: 0,
+          height: "100%",
+        }}
+      >
+        <div style={{ position: "relative", width: "100%", height: "100%" }}>
+          <MapPreview position={position} />
+        </div>
+      </aside>
     </div>
   );
 }

@@ -9,25 +9,30 @@ export default function PlaceDetailCard({
   onClose,
   variant = "overlay",
   onRootClick,
-  thumbWidth = 120,
-  thumbHeight = 100,
+  thumbWidth = "28%",
+  thumbHeight,
+  // 追加：オーバーレイ時の“下からの持ち上げ量”
+  overlayOffset = "clamp(24px, 5vh, 56px)",
 }) {
   if (!place) return null;
+
+  const thumbW = typeof thumbWidth === "number" ? `${thumbWidth}px` : thumbWidth;
+  const thumbH = typeof thumbHeight === "number" ? `${thumbHeight}px` : thumbHeight;
 
   const isOverlay = variant === "overlay";
 
   const containerStyle = isOverlay
     ? {
         position: "absolute",
-        left: 12,
-        right: 12,
-        bottom: "calc(env(safe-area-inset-bottom, 0px) + 40px)",
+        left: "2.5%",
+        right: "2.5%",
+        bottom: `calc(env(safe-area-inset-bottom, 0px) + ${overlayOffset})`,
         background: "#fff",
         borderRadius: 16,
         boxShadow: "0 10px 24px rgba(0,0,0,.2)",
         zIndex: 3000,
         display: "grid",
-        gridTemplateColumns: `1fr ${thumbWidth}px`,
+        gridTemplateColumns: `1fr ${thumbW}`,
         gap: 12,
         padding: 12,
       }
@@ -36,7 +41,7 @@ export default function PlaceDetailCard({
         borderRadius: 12,
         border: "1px solid #eee",
         display: "grid",
-        gridTemplateColumns: `1fr ${thumbWidth}px`,
+        gridTemplateColumns: `1fr ${thumbW}`,
         gap: 12,
         padding: 10,
         cursor: onRootClick ? "pointer" : "default",
@@ -201,7 +206,7 @@ export default function PlaceDetailCard({
       <div
         style={{
           width: "100%",
-          height: thumbHeight,
+          height: thumbH,
           borderRadius: 12,
           background: "#e9e9e9",
           display: "flex",
@@ -223,7 +228,6 @@ export default function PlaceDetailCard({
     </>
   );
 
-  // ★ onRootClick あり：role/tabIndex/keyboard を “リテラル” で付けたブランチ
   if (onRootClick) {
     return (
       <div
@@ -246,6 +250,5 @@ export default function PlaceDetailCard({
     );
   }
 
-  // ★ onRootClick なし：完全にプレーンな div（クリック/タブ不可）
   return <div style={containerStyle}>{renderContent()}</div>;
 }

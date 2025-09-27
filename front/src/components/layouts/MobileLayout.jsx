@@ -9,9 +9,7 @@ import PlaceAutocomplete from "../PlaceAutocomplete";
 
 function MobileLayout({ id, relatedVideos, channels, currentVideo }) {
   const navigate = useNavigate();
-
   const sheetRef = useRef(null);
-  const contentRef = useRef(null);
 
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [isMapOpen, setIsMapOpen] = useState(false);
@@ -21,45 +19,78 @@ function MobileLayout({ id, relatedVideos, channels, currentVideo }) {
   const [isDraggingMap, setIsDraggingMap] = useState(false);
   const [selectedPlace, setSelectedPlace] = useState(null);
 
-  const [maxSnap, setMaxSnap] = useState(650);
+  // 配列で渡すためのスナップポイント
+  const [snapPoints, setSnapPoints] = useState([560, 360]);
 
-  const computeMaxSnap = () => {
-    const vh = typeof window !== "undefined" ? window.innerHeight : 800;
-    const SLOP = 32;
-    return Math.max(420, Math.min(650, vh - SLOP));
+  const isDesktop = typeof window !== "undefined" &&
+    window.matchMedia?.("(hover: hover) and (pointer: fine)").matches;
+
+  // “いま実際に見えている高さ”から安全なスナップ値を算出
+  const computeSnapPoints = () => {
+    const clientH = document.documentElement?.clientHeight || 0; // 最優先（PCで安定）
+    const vvH = window.visualViewport?.height || 0;
+    const winH = window.innerHeight || 0;
+    const vh = clientH || vvH || winH || 800;
+
+    const headerH =
+      parseFloat(
+        getComputedStyle(document.documentElement).getPropertyValue("--header-h")
+      ) || 0;
+
+    // デスクトップでは余裕を少し大きめに取る
+    const SLOP = isDesktop ? 48 : 24;
+
+    const maxUsable = Math.max(0, vh - headerH - SLOP);
+
+    const full = Math.max(420, Math.floor(maxUsable));     // はみ出さない最大
+    const mid  = Math.min(400, Math.round(full * 0.6));     // 中段（使いやすい高さ）
+    return [full, mid];
   };
 
+  // 初期計算
   useLayoutEffect(() => {
-    setMaxSnap(computeMaxSnap());
-  }, []);
+    setSnapPoints(computeSnapPoints());
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // リサイズにだけ追従（scrollは監視しない）
   useEffect(() => {
-    const onResize = () => setMaxSnap(computeMaxSnap());
+    const onResize = () => setSnapPoints(computeSnapPoints());
     window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
-  }, []);
-
-  const [contentHeight, setContentHeight] = useState(400);
-  useEffect(() => {
-    const el = contentRef.current;
-    if (!el) {
-      return () => {};
-    }
-    const ro = new ResizeObserver(() => setContentHeight(el.clientHeight));
-    setContentHeight(el.clientHeight);
-    ro.observe(el);
+    window.visualViewport?.addEventListener("resize", onResize);
     return () => {
-      ro.disconnect();
+      window.removeEventListener("resize", onResize);
+      window.visualViewport?.removeEventListener("resize", onResize);
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // 開閉に合わせて body スクロールをロック（安定化）
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    if (isSheetOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = prev || "";
+    }
+    return () => {
+      document.body.style.overflow = prev || "";
     };
   }, [isSheetOpen]);
+
+  // 開いた瞬間に再計算＆再スナップ（遅延ロード由来のズレ吸収）
+  useEffect(() => {
+    if (!isSheetOpen) return;
+    setSnapPoints(computeSnapPoints());
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        sheetRef.current?.snapTo(0); // 0 = 最大スナップ
+      });
+    });
+  }, [isSheetOpen]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSelectPlace = (p) => {
     const lat = Number(p.latitude);
     const lng = Number(p.longitude);
-    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
-      console.warn("Invalid lat/lng:", lat, lng);
-      return;
-    }
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
     setSelectedPlace(p);
     setPlaceName(p.name || "選択した場所");
     setPosition({ lat, lng });
@@ -69,20 +100,27 @@ function MobileLayout({ id, relatedVideos, channels, currentVideo }) {
   const expandSheetToMax = () => {
     setIsSheetOpen(true);
     requestAnimationFrame(() => {
-      sheetRef.current?.snapTo(0);
-      requestAnimationFrame(() => {
-        if (contentRef.current) setContentHeight(contentRef.current.clientHeight);
-      });
+      sheetRef.current?.snapTo(0); // 0 = 最大スナップ
     });
   };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100vh", paddingBottom: "60px" }}>
-      <div style={{ flex: "0 0 200px" }}>
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        minHeight: "100dvh",
+        // シート閉時だけ、下固定の検索バーぶん余白を確保
+        paddingBottom: isSheetOpen
+          ? 0
+          : "calc(var(--bottom-bar-h) + env(safe-area-inset-bottom, 0px))",
+      }}
+    >
+      <div style={{ flex: "0 0 30%" }}>
         <VideoPlayerWrapper videoId={id} />
       </div>
 
-      <h3>関連動画</h3>
+      <h4>関連動画</h4>
       <div style={{ flex: 1, overflowY: "auto" }}>
         {relatedVideos.map((video) => (
           <VideoItem
@@ -94,6 +132,7 @@ function MobileLayout({ id, relatedVideos, channels, currentVideo }) {
         ))}
       </div>
 
+      {/* 画面下固定の検索バー（シート表示時は透明化 & クリック無効化） */}
       <div
         style={{
           position: "fixed",
@@ -106,40 +145,50 @@ function MobileLayout({ id, relatedVideos, channels, currentVideo }) {
           transition: "opacity .18s ease",
           backgroundColor: "white",
           borderTop: "1px solid #ddd",
-          padding: "10px",
         }}
       >
         <MapSearchBar onFocus={() => setIsSheetOpen(true)} />
       </div>
 
+      {/* シート */}
       <Sheet
         ref={sheetRef}
         isOpen={isSheetOpen}
         onClose={() => setIsSheetOpen(false)}
-        snapPoints={[maxSnap, 400]}
+        snapPoints={snapPoints}
         initialSnap={1}
         style={{ zIndex: 2000 }}
       >
-        <Sheet.Container style={{ zIndex: 2000, overflow: "visible" }}>
+        <Sheet.Container
+          style={{
+            zIndex: 2000,
+            overflow: "hidden",
+            // 念のための上限（シート内の内部再計測で伸びすぎるのを防ぐ）
+            maxHeight: "calc(100dvh - var(--header-h) - 8px)",
+          }}
+        >
           <Sheet.Header>
             <PlaceAutocomplete onPlaceSelect={handleSelectPlace} />
           </Sheet.Header>
 
+          {/* 可視領域フィット：1fr + 安全域 */}
           <Sheet.Content
-            ref={contentRef}
             disableDrag={isDraggingMap}
             style={{
-              overflow: "visible",
-              paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 20px)",
+              display: "grid",
+              gridTemplateRows: "1fr auto",
+              overflow: "hidden",
+              minHeight: 0,
             }}
           >
-            {isMapOpen && (
-              <div
-                onTouchStart={() => setIsDraggingMap(true)}
-                onTouchEnd={() => setIsDraggingMap(false)}
-                onMouseEnter={() => setIsDraggingMap(true)}
-                onMouseLeave={() => setIsDraggingMap(false)}
-              >
+            <div
+              style={{ minHeight: 0 }}
+              onTouchStart={() => setIsDraggingMap(true)}
+              onTouchEnd={() => setIsDraggingMap(false)}
+              onMouseEnter={() => setIsDraggingMap(true)}
+              onMouseLeave={() => setIsDraggingMap(false)}
+            >
+              {isMapOpen && (
                 <MapPreview
                   key={`${position.lat}-${position.lng}`}
                   position={position}
@@ -147,10 +196,11 @@ function MobileLayout({ id, relatedVideos, channels, currentVideo }) {
                   selectedPlace={selectedPlace}
                   currentVideo={currentVideo}
                   onRequestExpand={expandSheetToMax}
-                  mapHeight={contentHeight}
                 />
-              </div>
-            )}
+              )}
+            </div>
+
+            <div style={{ height: "max(env(safe-area-inset-bottom, 0px), 16px)" }} />
           </Sheet.Content>
         </Sheet.Container>
         <Sheet.Backdrop onTap={() => setIsSheetOpen(false)} />
