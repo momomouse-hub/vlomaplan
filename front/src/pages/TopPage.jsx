@@ -1,18 +1,20 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ensureVisitor } from "../api/identity";
+import TopQuickStartOverlay from "../components/TopQuickStartOverlay";
 
 function TopPage() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  const [opening, setOpening] = useState(false);
 
   const handleStart = async () => {
     try {
       setLoading(true);
       setErrorMsg("");
       await ensureVisitor();
-      navigate("/home");
+      setOpening(true);
     } catch (e) {
       console.error(e);
       setErrorMsg("初期化に失敗しました。ネットワークを確認してください。");
@@ -96,6 +98,8 @@ function TopPage() {
       >
         使い方
       </div>
+
+      {opening && <TopQuickStartOverlay onClose={() => setOpening(false)} />}
     </main>
   );
 }
