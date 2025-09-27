@@ -10,7 +10,8 @@ function MapPopup({
   return (
     <div
       style={{
-        width: "240px",
+        width: "50vw",
+        maxWidth: "480px",
         borderRadius: "16px",
         overflow: "hidden",
         fontFamily: "sans-serif",

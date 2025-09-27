@@ -3,9 +3,11 @@ function TopHeader() {
     <header
       style={{
         backgroundColor: "#eee",
-        padding: "10px",
+        padding: "1.5% 4%",
         display: "flex",
-        justifyContent: "space-between"
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: "2%"
       }}>
       <h1>VloMaPlan</h1>
       <h1>Menu</h1>

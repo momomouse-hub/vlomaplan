@@ -1,8 +1,36 @@
+:root {
+  --page-pad-inline: clamp(12px, 4vw, 32px);
+  --header-h: 64px;
+  --bottom-bar-h: 40px;
+}
+
+html, body, #root {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+}
+
 #root {
-  max-width: 1280px;
-  margin: 0 auto;
-  /* padding: 2rem; */
+  width: 100%;
+  margin: 0;
+  text-align: initial;
+}
+
+.full-bleed {
+  padding-inline: 0 !important;
+}
+
+.centered {
+  display: grid;
+  place-items: center;
   text-align: center;
+}
+
+.container {
+  max-width: 1200px;
+  margin-inline: auto;
+  padding-inline: var(--page-pad-inline);
 }
 
 .logo {
