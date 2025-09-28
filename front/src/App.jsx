@@ -5,8 +5,7 @@ import MainLayout from "./components/layouts/MainLayout";
 import TopPage from "./pages/TopPage";
 import SearchResultPage from "./pages/SearchResultPage";
 import VideoDetailPage from "./pages/VideoDetailPage";
-import LoginPage from "./pages/LoginPage";
-import RegisterPage from "./pages/RegisterPage";
+import MyPage from "./pages/MyPage";
 
 function App() {
   return (
@@ -14,8 +13,7 @@ function App() {
       <Routes>
         <Route element={<TopLayout />}>
           <Route path="/" element={<TopPage />} />
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/register" element={<RegisterPage />} />
+          <Route path="mypage" element={<MyPage />} />
         </Route>
         <Route element={<MainLayout />}>
           <Route path="/search" element={<SearchResultPage />} />

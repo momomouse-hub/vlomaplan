@@ -17,6 +17,8 @@ html, body, #root {
   text-align: initial;
 }
 
+*, *::before, *::after { box-sizing: border-box;}
+
 .full-bleed {
   padding-inline: 0 !important;
 }
