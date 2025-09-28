@@ -1,24 +1,21 @@
-// front/src/components/TopQuickStartOverlay.jsx
 import { useEffect } from "react";
-import { useNavigate } from "react-router-dom";
 import SearchBar from "./SearchBar";
 
-export default function TopQuickStartOverlay({ onClose }) {
-  const navigate = useNavigate();
+export default function TopQuickStartOverlay({ onClose, onOpenLogin, onOpenRegister }) {
 
   useEffect(() => {
     const onKey = (e) => e.key === "Escape" && onClose();
     document.addEventListener("keydown", onKey);
     const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden"; // 背景スクロール防止
+    document.body.style.overflow = "hidden";
     return () => {
       document.removeEventListener("keydown", onKey);
       document.body.style.overflow = prev;
     };
   }, [onClose]);
 
-  const go = (path) => {
-    navigate(path);
+  const openThenClose = (fn) => {
+    fn?.();
     onClose();
   };
 
@@ -39,13 +36,13 @@ export default function TopQuickStartOverlay({ onClose }) {
         onClick={(e) => e.stopPropagation()}
         style={{
           width: "min(560px, 92vw)",
+          boxSizing: "border-box",
           borderRadius: 16,
           background: "rgba(255,255,255,0.94)",
           boxShadow: "0 10px 30px rgba(0,0,0,0.2)",
           padding: 20,
         }}
       >
-
         <div style={{ marginBottom: 14 }}>
           <SearchBar placeholder="Vlogを探す" autoFocus />
         </div>
@@ -66,13 +63,13 @@ export default function TopQuickStartOverlay({ onClose }) {
           ログインすれば、プランをいつでも保存・編集できます
         </div>
 
-        {/* ← ここから順序を「登録 → ログイン」に入れ替え */}
         <div style={{ display: "grid", gap: 10 }}>
           <button
             type="button"
-            onClick={() => go("/register")}
+            onClick={() => openThenClose(onOpenRegister)}
             style={{
               width: "100%",
+              boxSizing: "border-box",
               padding: "12px 16px",
               borderRadius: 9999,
               background: "#fff",
@@ -86,9 +83,10 @@ export default function TopQuickStartOverlay({ onClose }) {
 
           <button
             type="button"
-            onClick={() => go("/login")}
+            onClick={() => openThenClose(onOpenLogin)}
             style={{
               width: "100%",
+              boxSizing: "border-box",
               padding: "12px 16px",
               borderRadius: 9999,
               border: "none",
@@ -106,6 +104,7 @@ export default function TopQuickStartOverlay({ onClose }) {
             aria-label="閉じる"
             style={{
               width: "100%",
+              boxSizing: "border-box",
               padding: "10px 12px",
               border: "none",
               background: "transparent",

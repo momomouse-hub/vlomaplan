@@ -1,13 +1,15 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { ensureVisitor } from "../api/identity";
 import TopQuickStartOverlay from "../components/TopQuickStartOverlay";
+import LoginOverlay from "../components/LoginOverlay";
+import RegisterOverlay from "../components/RegisterOverlay";
 
 function TopPage() {
-  const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [opening, setOpening] = useState(false);
+  const [loginOpen, setLoginOpen] = useState(false);
+  const [registerOpen, setRegisterOpen] = useState(false);
 
   const handleStart = async () => {
     try {
@@ -59,7 +61,7 @@ function TopPage() {
           border: "2px solid #2CA478",
           fontWeight: 700,
         }}
-        onClick={() => navigate("/register")}
+        onClick={() => setRegisterOpen(true)}
       >
         ユーザー登録
       </button>
@@ -75,7 +77,7 @@ function TopPage() {
           color: "#fff",
           fontWeight: 700,
         }}
-        onClick={() => navigate("/login")}
+        onClick={() => setLoginOpen(true)}
       >
         ログイン
       </button>
@@ -99,7 +101,31 @@ function TopPage() {
         使い方
       </div>
 
-      {opening && <TopQuickStartOverlay onClose={() => setOpening(false)} />}
+      {opening && (
+        <TopQuickStartOverlay
+          onClose={() => setOpening(false)}
+          onOpenLogin={() => setLoginOpen(true)}
+          onOpenRegister={() => setRegisterOpen(true)}
+        />
+      )}
+      {loginOpen && (
+        <LoginOverlay
+          onClose={() => setLoginOpen(false)}
+          onSwitchToRegister={() => {
+            setLoginOpen(false);
+            setRegisterOpen(true);
+          }}
+        />
+      )}
+      {registerOpen && (
+        <RegisterOverlay
+          onClose={() => setRegisterOpen(false)}
+          onSwitchToLogin={() => {
+            setRegisterOpen(false);
+            setLoginOpen(true);
+          }}
+        />
+      )}
     </main>
   );
 }
