@@ -1,11 +1,10 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { register } from "../api/registrations";
-import { fetchIdentity } from "../api/identity";
-
+import { useAuth } from "../contexts/AuthContext";
 export default function RegisterOverlay({ onClose, onSwitchToLogin }) {
   const navigate = useNavigate();
-
+  const { refresh } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [password2, setPassword2] = useState("");
@@ -40,9 +39,9 @@ export default function RegisterOverlay({ onClose, onSwitchToLogin }) {
     setSubmitting(true);
     try {
       await register(email, password, password2);
-      await fetchIdentity();
+      await refresh();
       onClose();
-      navigate("/mypage");
+      navigate("/mypage", { replace: true });
     } catch (err) {
       const code = err?.data?.error || "unknown";
       const jp = {

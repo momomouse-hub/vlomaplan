@@ -10,6 +10,16 @@ function setVisitorToken(t) {
 }
 export const __setVisitorToken = setVisitorToken;
 
+function updateTokenFromResponse(res) {
+  const newToken = res.headers.get("X-Visitor-Token");
+  if (!newToken) return;
+  const prev = getVisitorToken();
+  if (newToken !== prev) {
+    setVisitorToken(newToken);
+    window.dispatchEvent(new CustomEvent("auth:token-changed", { detail: { newToken, prev } }));
+  }
+}
+
 export async function apiFetch(url, options = {}) {
   const headers = new Headers(options.headers || {});
   const token = getVisitorToken();
@@ -17,8 +27,7 @@ export async function apiFetch(url, options = {}) {
 
   const res = await fetch(url, { ...options, headers });
 
-  const newToken = res.headers.get("X-Visitor-Token");
-  if (newToken) setVisitorToken(newToken);
+  updateTokenFromResponse(res);
 
   return res;
 }
@@ -38,8 +47,7 @@ export async function apiFetchJson(url, options = {}) {
 
   const res = await fetch(url, { ...rest, headers, body: outBody });
 
-  const newToken = res.headers.get("X-Visitor-Token");
-  if (newToken) setVisitorToken(newToken);
+  updateTokenFromResponse(res);
 
   const text = await res.text();
   const raw = text ? JSON.parse(text) : null;

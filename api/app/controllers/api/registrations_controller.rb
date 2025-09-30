@@ -8,7 +8,13 @@ class Api::RegistrationsController < ApplicationController
       uc = current_user.build_user_credential(registration_params)
       uc.save!
 
-      render json: { ok: true, user_id: current_user.id, email: uc.email }, status: :created
+      uv = UserVisit.find_or_initialize_by(user: current_user)
+      uv.token = SecureRandom.uuid
+      uv.created_at ||= Time.current
+      uv.save!
+      response.set_header("X-Visitor-Token", uv.token)
+
+      render json: { ok: true }, status: :created
     end
   rescue ActiveRecord::RecordInvalid => e
     render json: { error: map_registration_error(e.record) }, status: :unprocessable_entity

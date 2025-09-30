@@ -1,4 +1,5 @@
 import SearchBar from "./SearchBar";
+import UserMenuOrLogout from "./UserMenuOrLogout";
 
 function Header() {
   return (
@@ -13,7 +14,7 @@ function Header() {
       }}>
       <h1>VloMaPlan</h1>
       <SearchBar />
-      <h1>Menu</h1>
+      <UserMenuOrLogout />
     </header>
   )
 }
