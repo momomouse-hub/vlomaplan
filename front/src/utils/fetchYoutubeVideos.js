@@ -31,7 +31,12 @@ const fetchYoutubeVideos = async (keyword) => {
     .map((video) => ({
       id: video.id,
       title: video.snippet.title,
-      thumbnail: video.snippet.thumbnails.medium.url,
+      thumbnail:
+        ( video.snippet.thumbnails.maxres?.url ??
+          video.snippet.thumbnails.standard?.url ??
+          video.snippet.thumbnails.high?.url ??
+          video.snippet.thumbnails.medium?.url ??
+          `https://i.ytimg.com/vi/${video.id}/hq720.jpg`),
       channelId: video.snippet.channelId,
       duration: video.contentDetails.duration,
       viewCount: video.statistics.viewCount,
