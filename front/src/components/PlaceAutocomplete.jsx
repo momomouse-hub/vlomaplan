@@ -2,12 +2,13 @@ import { useState, useCallback } from "react";
 import { useMapsLibrary } from "@vis.gl/react-google-maps";
 import { useAutocompleteSuggestions } from "../hooks/useAutocompleteSuggestions";
 
-function PlaceAutocomplete({ onPlaceSelect }) {
+function PlaceAutocomplete({ onPlaceSelect, onSearchStart }) {
   useMapsLibrary("places");
 
   const [inputValue, setInputValue] = useState("");
   const [searchValue, setSearchValue] = useState("");
   const [isComposing, setIsComposing] = useState(false);
+  const [firedStart, setFiredStart] = useState(false);
 
   const { suggestions, resetSession } = useAutocompleteSuggestions(searchValue);
 
@@ -55,7 +56,14 @@ function PlaceAutocomplete({ onPlaceSelect }) {
         type="text"
         placeholder="行きたい場所をお気に入りに追加"
         value={inputValue}
-        onChange={(e) => setInputValue(e.target.value)}
+        onChange={(e) => {
+          const v = e.target.value;
+          setInputValue(v);
+          if (!firedStart && v.trim().length > 0) {
+            setFiredStart(true);
+            onSearchStart?.();
+          }
+        }}
         onCompositionStart={handleCompositionStart}
         onCompositionEnd={handleCompositionEnd}
         onKeyDown={handleKeyDown}

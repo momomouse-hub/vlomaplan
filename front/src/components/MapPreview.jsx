@@ -128,6 +128,7 @@ function MapPreview({
   currentVideo,
   onRequestExpand,
   mapHeight,
+  onUnmask,
 }) {
   const [isPopupOpen, setIsPopupOpen] = useState(false);
   const [showDetail, setShowDetail] = useState(false);
@@ -172,6 +173,7 @@ function MapPreview({
 
   const handleOpenWishlist = useCallback(async () => {
     onRequestExpand?.();
+    onUnmask?.();
     setShowWishlist(true);
     setIsPopupOpen(false);
     setShowDetail(false);
@@ -333,7 +335,10 @@ function MapPreview({
           label="旅行プランを表示"
           iconSrc={isSaved ? "/filledluggage.svg" : "/luggage.svg"}
           iconAlt="旅行プラン"
-          onAction={() => alert("旅行プラン機能は準備中です")}
+          onAction={() => {
+            onUnmask?.();
+            alert("旅行プラン機能は準備中です")
+          }}
         />
       </div>
 

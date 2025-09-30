@@ -1,10 +1,27 @@
 import { useNavigate } from "react-router-dom";
+import { useState, useCallback } from "react";
 import VideoPlayerWrapper from "../VideoPlayerWrapper";
 import VideoItem from "../VideoItem";
 import MapPreview from "../MapPreview";
+import PlaceAutocomplete from "../PlaceAutocomplete";
 
-function DesktopLayout({ id, relatedVideos, channels, position }) {
+function DesktopLayout({ id, relatedVideos, channels, currentVideo }) {
   const navigate = useNavigate();
+
+  const [position, setPosition] = useState({ lat: 35.681236, lng: 139.767125 });
+  const [placeName, setPlaceName] = useState("");
+  const [selectedPlace, setSelectedPlace] = useState(null);
+  const [masked, setMasked] = useState(true);
+
+  const handleSelectPlace = useCallback((p) => {
+    const lat = Number(p.latitude);
+    const lng = Number(p.longitude);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+    setSelectedPlace(p);
+    setPlaceName(p.name || "選択した場所");
+    setPosition({ lat, lng });
+    setMasked(false);
+  }, []);
 
   return (
     <div
@@ -13,17 +30,11 @@ function DesktopLayout({ id, relatedVideos, channels, position }) {
         display: "grid",
         gridTemplateColumns: "1fr 1fr",
         gap: "2%",
-        height: "100dvh",
+        height: "calc(100dvh - var(--header-h, 0px))",
+        minHeight: 0,
       }}
     >
-      <section
-        style={{
-          minWidth: 0,
-          minHeight: 0,
-          display: "flex",
-          flexDirection: "column",
-        }}
-      >
+      <section style={{ minWidth: 0, minHeight: 0, display: "flex", flexDirection: "column" }}>
         <div style={{ width: "100%", aspectRatio: "16/9" }}>
           <VideoPlayerWrapper videoId={id} />
         </div>
@@ -41,15 +52,64 @@ function DesktopLayout({ id, relatedVideos, channels, position }) {
         </div>
       </section>
 
-      <aside
-        style={{
-          minWidth: 0,
-          minHeight: 0,
-          height: "100%",
-        }}
-      >
-        <div style={{ position: "relative", width: "100%", height: "100%" }}>
-          <MapPreview position={position} />
+      <aside style={{ minWidth: 0, minHeight: 0 }}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateRows: "auto 1fr",
+            height: "100%",
+            minHeight: 0,
+          }}
+        >
+          <div>
+            <PlaceAutocomplete
+              onPlaceSelect={handleSelectPlace}
+              onSearchStart={() => setMasked(false)}
+            />
+          </div>
+
+          <div style={{ position: "relative", minHeight: 0 }}>
+            <div style={{ position: "absolute", inset: 0 }}>
+              <MapPreview
+                key={`${position.lat}-${position.lng}`}
+                position={position}
+                placeName={placeName}
+                selectedPlace={selectedPlace}
+                currentVideo={currentVideo}
+                onUnmask={() => setMasked(false)}
+              />
+              <div
+                aria-hidden
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  background: "rgba(0,0,0,0.35)",
+                  backdropFilter: "blur(1px)",
+                  transition: "opacity .25s ease",
+                  opacity: masked ? 1 : 0,
+                  pointerEvents: masked ? "auto" : "none",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  color: "#444",
+                  fontSize: 14,
+                  fontWeight: "bold",
+                  zIndex: 2,
+                }}
+              >
+                <div
+                  style={{
+                    padding: "8px 12px",
+                    background: "rgba(255,255,255)",
+                    borderRadius: 8,
+                    border: "1px solid rgba(255,255,255,0.2)",
+                  }}
+                >
+                  検索を開始するとマップが移動します
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </aside>
     </div>
