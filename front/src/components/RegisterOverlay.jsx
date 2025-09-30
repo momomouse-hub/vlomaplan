@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { register } from "../api/registrations";
 import { useAuth } from "../contexts/AuthContext";
+
 export default function RegisterOverlay({ onClose, onSwitchToLogin }) {
   const navigate = useNavigate();
   const { refresh } = useAuth();

@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { ensureVisitor } from "../api/identity";
 import TopQuickStartOverlay from "../components/TopQuickStartOverlay";
 import LoginOverlay from "../components/LoginOverlay";
 import RegisterOverlay from "../components/RegisterOverlay";
+import { useLoginRequiredEffect } from "../hooks/useLoginRequiredEffect";
 
 function TopPage() {
   const [loading, setLoading] = useState(false);
@@ -10,6 +11,12 @@ function TopPage() {
   const [opening, setOpening] = useState(false);
   const [loginOpen, setLoginOpen] = useState(false);
   const [registerOpen, setRegisterOpen] = useState(false);
+
+  const openLoginUI = useCallback(() => {
+    setLoginOpen(true);
+  }, []);
+
+  useLoginRequiredEffect(openLoginUI);
 
   const handleStart = async () => {
     try {

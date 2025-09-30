@@ -12,10 +12,9 @@ import {
   deleteWishlist,
 } from "../api/wishlists";
 
-/* ==== 下部リスト（オーバーレイ） ==== */
 function WishlistPanel({
   heightPx = 280,
-  bottomOffset = "clamp(24px, 6vh, 64px)", // 追加：下からの持ち上げ量
+  bottomOffset = "clamp(24px, 6vh, 64px)",
   items,
   loading,
   hasNext,
@@ -63,7 +62,6 @@ function WishlistPanel({
         overflow: "hidden",
       }}
     >
-      {/* ヘッダー */}
       <div
         style={{
           display: "flex",
@@ -96,7 +94,6 @@ function WishlistPanel({
         </button>
       </div>
 
-      {/* リスト */}
       <div style={{ flex: 1, overflowY: "auto", padding: 12, gap: 10, display: "grid" }}>
         {items.length === 0 && !loading && <div style={{ color: "#666" }}>まだ保存がありません</div>}
 
@@ -124,19 +121,17 @@ function WishlistPanel({
   );
 }
 
-/* ================= MapPreview ================= */
 function MapPreview({
   position,
   placeName,
   selectedPlace,
   currentVideo,
   onRequestExpand,
-  mapHeight, // 後方互換：未指定なら 100%
+  mapHeight,
 }) {
   const [isPopupOpen, setIsPopupOpen] = useState(false);
   const [showDetail, setShowDetail] = useState(false);
 
-  // ▼ Wishlist パネル用
   const [showWishlist, setShowWishlist] = useState(false);
   const [wlItems, setWlItems] = useState([]);
   const [wlNext, setWlNext] = useState(1);
@@ -219,7 +214,6 @@ function MapPreview({
     alert(`旅行プランに追加（仮）: ${item.place?.name ?? "(no name)"}`);
   }, []);
 
-  // mapHeight 変化時のパン（後方互換）
   useEffect(() => {
     if (!map) return;
     const oldH = prevH.current;
@@ -231,7 +225,6 @@ function MapPreview({
     prevH.current = newH;
   }, [mapHeight, map]);
 
-  // 合計カウント初期化
   useEffect(() => {
     (async () => {
       try {
@@ -243,7 +236,6 @@ function MapPreview({
     })();
   }, []);
 
-  // place の保存状態とサムネ初期化
   useEffect(() => {
     const pid = selectedPlace?.placeId;
     if (!pid) return;
@@ -262,7 +254,6 @@ function MapPreview({
     })();
   }, [selectedPlace?.placeId]);
 
-  // 地図クリックなどで詳細/ポップアップ閉じ
   useEffect(() => {
     setIsPopupOpen(false);
     setShowDetail(false);
@@ -319,7 +310,6 @@ function MapPreview({
 
   return (
     <div style={{ height: containerHeight, width: "100%", position: "relative" }}>
-      {/* 右上のアクション */}
       <div
         style={{
           position: "absolute",
@@ -347,7 +337,6 @@ function MapPreview({
         />
       </div>
 
-      {/* Google Map */}
       <Map
         defaultCenter={position}
         defaultZoom={14}
@@ -397,7 +386,6 @@ function MapPreview({
         )}
       </Map>
 
-      {/* 下部の詳細カード（保存済み） */}
       {showDetail && isSavedGlobally && (
         <PlaceDetailCard
           variant="overlay"
@@ -417,12 +405,10 @@ function MapPreview({
           onClose={() => setShowDetail(false)}
           thumbWidth={120}
           thumbHeight={100}
-          // ここで少し上に浮かせる
           overlayOffset="clamp(24px, 5vh, 56px)"
         />
       )}
 
-      {/* お気に入りリスト（シート内にかぶせる） */}
       {showWishlist && (
         <WishlistPanel
           bottomOffset="clamp(24px, 6vh, 64px)"
