@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { login } from "../api/sessions";
-import { fetchIdentity } from "../api/identity";
+import { useAuth } from "../contexts/AuthContext";
 
 export default function LoginOverlay({ onClose, onSwitchToRegister }) {
   const navigate = useNavigate();
+  const { refresh } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -28,9 +29,9 @@ export default function LoginOverlay({ onClose, onSwitchToRegister }) {
     setSubmitting(true);
     try {
       await login(email, password);
-      await fetchIdentity();
+      await refresh();
       onClose();
-      navigate("/mypage");
+      navigate("/mypage", { replace: true });
     } catch (err) {
       const code = err?.data?.error || "unknown";
       const jp = { invalid_credentials: "メールまたはパスワードが違います" };

@@ -1,3 +1,5 @@
+import UserMenuOrLogout from "./UserMenuOrLogout";
+
 function TopHeader() {
   return (
     <header
@@ -10,7 +12,7 @@ function TopHeader() {
         gap: "2%"
       }}>
       <h1>VloMaPlan</h1>
-      <h1>Menu</h1>
+      <UserMenuOrLogout />
     </header>
   )
 }
