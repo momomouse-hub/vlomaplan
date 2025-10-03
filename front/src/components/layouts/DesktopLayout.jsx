@@ -11,7 +11,8 @@ function DesktopLayout({ id, relatedVideos, channels, currentVideo }) {
   const [position, setPosition] = useState({ lat: 35.681236, lng: 139.767125 });
   const [placeName, setPlaceName] = useState("");
   const [selectedPlace, setSelectedPlace] = useState(null);
-  const [masked, setMasked] = useState(true);
+  const [wishlistTotal, setWishlistTotal] = useState(null);
+  const masked = (wishlistTotal === 0 || wishlistTotal === null) && !selectedPlace;
 
   const handleSelectPlace = useCallback((p) => {
     const lat = Number(p.latitude);
@@ -20,7 +21,6 @@ function DesktopLayout({ id, relatedVideos, channels, currentVideo }) {
     setSelectedPlace(p);
     setPlaceName(p.name || "選択した場所");
     setPosition({ lat, lng });
-    setMasked(false);
   }, []);
 
   return (
@@ -64,19 +64,18 @@ function DesktopLayout({ id, relatedVideos, channels, currentVideo }) {
           <div>
             <PlaceAutocomplete
               onPlaceSelect={handleSelectPlace}
-              onSearchStart={() => setMasked(false)}
             />
           </div>
 
           <div style={{ position: "relative", minHeight: 0 }}>
             <div style={{ position: "absolute", inset: 0 }}>
               <MapPreview
-                key={`${position.lat}-${position.lng}`}
                 position={position}
                 placeName={placeName}
                 selectedPlace={selectedPlace}
                 currentVideo={currentVideo}
-                onUnmask={() => setMasked(false)}
+                onSelectPlace={handleSelectPlace}
+                onWishlistTotalChange={setWishlistTotal}
               />
               <div
                 aria-hidden
@@ -105,7 +104,7 @@ function DesktopLayout({ id, relatedVideos, channels, currentVideo }) {
                     border: "1px solid rgba(255,255,255,0.2)",
                   }}
                 >
-                  検索を開始するとマップが移動します
+                  ↑検索バーで行きたい場所を検索してください
                 </div>
               </div>
             </div>

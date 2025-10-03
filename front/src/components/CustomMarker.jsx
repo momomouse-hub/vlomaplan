@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { useMap, useMapsLibrary } from "@vis.gl/react-google-maps";
 
-function CustomMarker({ position, isFavorite, onClick }) {
+function CustomMarker({ position, isFavorite, isSelected = false, onClick }) {
   const map = useMap();
   const markerLib = useMapsLibrary("marker");
   const markerRef = useRef(null);
@@ -17,7 +17,7 @@ function CustomMarker({ position, isFavorite, onClick }) {
 
     if (isFavorite) {
       const img = document.createElement("img");
-      img.src = "/filledheart.svg";
+      img.src = isSelected ? "/selectedfilledheart.svg" : "/filledheart.svg";
       img.alt = "お気に入り";
       img.style.width = "48px";
       img.style.height = "48px";
@@ -37,6 +37,7 @@ function CustomMarker({ position, isFavorite, onClick }) {
       position,
       map,
       content: contentElement,
+      zIndex: isSelected ? 999 : 0,
     });
 
     if (onClick) {
@@ -48,7 +49,7 @@ function CustomMarker({ position, isFavorite, onClick }) {
     return () => {
       marker.map = null;
     };
-  }, [map, markerLib, position, isFavorite, onClick]);
+  }, [map, markerLib, position, isFavorite, isSelected, onClick]);
 
   return null;
 }
