@@ -23,6 +23,7 @@ function WishlistPanel({
   onSelect,
   onRemove,
   onAddToPlan,
+  totalCount,
 }) {
   const sentinelRef = useRef(null);
 
@@ -73,7 +74,8 @@ function WishlistPanel({
       >
         <div style={{ fontWeight: 700, fontSize: 16 }}>行きたい場所リスト</div>
         <div style={{ marginLeft: "auto", fontSize: 12, color: "#666" }}>
-          {items.length} 件{loading ? "（読込中…）" : ""}
+          {(Number.isFinite(totalCount) ? totalCount : items.length)}件
+          {loading ? "(読込中)" : ""}
         </div>
         <button
           type="button"
@@ -129,6 +131,8 @@ function MapPreview({
   onRequestExpand,
   mapHeight,
   onUnmask,
+  onSelectPlace,
+  onWishlistTotalChange,
 }) {
   const [isPopupOpen, setIsPopupOpen] = useState(false);
   const [showDetail, setShowDetail] = useState(false);
@@ -148,9 +152,36 @@ function MapPreview({
 
   const map = useMap();
   const prevH = useRef(mapHeight);
+  const didAutoCenter = useRef(false);
 
   const [placeThumbUrl, setPlaceThumbUrl] = useState(null);
   const [currentWishlistId, setCurrentWishlistId] = useState(null);
+
+  const [savedPins, setSavedPins] = useState([]);
+
+  const refreshSavedPins = useCallback(async () => {
+    try {
+      const acc = [];
+      let page = 1;
+      const per = 200;
+      for (; ;) {
+        const data = await listWishlists({ page, per });
+        const items = data.items || [];
+        acc.push(...items);
+        const next = data.pagination?.next ?? null;
+        if (!next) break;
+        page = next;
+        if (page > 50) break;
+      }
+      setSavedPins(
+        acc
+          .map((it) => ({ id: it.id, place: it.place }))
+          .filter((it) => Number.isFinite(Number(it.place?.latitude)) && Number.isFinite(Number(it.place?.longitude)))
+      );
+    } catch (e) {
+      console.warn("refreshSavedPins failed:", e);
+    }
+  }, []);
 
   const loadWishlist = useCallback(
     async (page = wlNext, per = WL_PER) => {
@@ -177,8 +208,19 @@ function MapPreview({
     setShowWishlist(true);
     setIsPopupOpen(false);
     setShowDetail(false);
-    if (wlItems.length === 0) await loadWishlist(1, WL_PER);
-  }, [wlItems.length, loadWishlist, onRequestExpand]);
+    setWlLoading(true);
+    try {
+      const [listRes, countRes] = await Promise.all([
+        listWishlists({ page: 1, per: WL_PER }),
+        totalCountWishlists(),
+      ]);
+      setWlItems(listRes.items || []);
+      setWlNext(listRes.pagination?.next ?? null);
+      setTotalFavCount(Number(countRes.totalCount || 0));
+    } finally {
+      setWlLoading(false);
+    }
+  }, [loadWishlist, onRequestExpand]);
 
   const handleCloseWishlist = useCallback(() => setShowWishlist(false), []);
 
@@ -186,10 +228,13 @@ function MapPreview({
     (it) => {
       const lat = Number(it?.place?.latitude);
       const lng = Number(it?.place?.longitude);
-      if (Number.isFinite(lat) && Number.isFinite(lng) && map) map.panTo({ lat, lng });
+      if (Number.isFinite(lat) && Number.isFinite(lng)) {
+        onSelectPlace?.({ ...it.place, placeId: it.place.place_id ?? it.place.placeId });
+        map?.panTo({ lat, lng });
+      }
       setShowWishlist(false);
     },
-    [map]
+    [map, onSelectPlace]
   );
 
   const handleRemoveWishlist = useCallback(
@@ -198,6 +243,7 @@ function MapPreview({
         await deleteWishlist(id);
         setWlItems((prev) => prev.filter((it) => it.id !== id));
         setTotalFavCount((c) => Math.max(0, (c || 0) - 1));
+        refreshSavedPins();
         if (currentWishlistId && currentWishlistId === id) {
           setIsSavedGlobally(false);
           setShowDetail(false);
@@ -208,7 +254,7 @@ function MapPreview({
         alert("削除に失敗しました。");
       }
     },
-    [currentWishlistId]
+    [currentWishlistId, refreshSavedPins]
   );
 
   const handleAddToPlanFromWishlist = useCallback((item) => {
@@ -239,6 +285,10 @@ function MapPreview({
   }, []);
 
   useEffect(() => {
+    refreshSavedPins();
+  }, [refreshSavedPins]);
+
+  useEffect(() => {
     const pid = selectedPlace?.placeId;
     if (!pid) return;
     (async () => {
@@ -258,8 +308,41 @@ function MapPreview({
 
   useEffect(() => {
     setIsPopupOpen(false);
-    setShowDetail(false);
-  }, [selectedPlace?.placeId, position.lat, position.lng]);
+    if (map && Number.isFinite(position?.lat) && Number.isFinite(position?.lng)) {
+      map.panTo({ lat: position.lat, lng: position.lng });
+    }
+  }, [position.lat, position.lng]);
+
+  useEffect(() => {
+    onWishlistTotalChange?.(totalFavCount);
+  }, [totalFavCount, onWishlistTotalChange]);
+
+  useEffect(() => {
+    return () => onWishlistTotalChange?.(null);
+  }, [onWishlistTotalChange]);
+
+  useEffect(() => {
+    if (didAutoCenter.current) return;
+
+    if (totalFavCount > 0 && !selectedPlace) {
+      (async () => {
+        try {
+          const res = await listWishlists({ page: 1, per: 1 });
+          const latest = res?.items?.[0];
+          const lat = Number(latest?.place?.latitude);
+          const lng = Number(latest?.place?.longitude);
+          if (Number.isFinite(lat) && Number.isFinite(lng)) {
+            const placeId = latest.place.place_id ?? latest.place.placeId;
+            onSelectPlace?.({ ...latest.place, placeId });
+            map?.panTo({ lat, lng });
+            didAutoCenter.current = true;
+          }
+        } catch (e) {
+          console.warn("auto-center failed:", e);
+        }
+      })();
+    }
+  }, [totalFavCount, selectedPlace, onSelectPlace, map]);
 
   const handleAddFavorite = async () => {
     if (!selectedPlace || !currentVideo || isSaving || isSavedGlobally) return;
@@ -291,7 +374,8 @@ function MapPreview({
         });
         setCurrentWishlistId(wishlistId ?? null);
         if (thumbnailUrl) setPlaceThumbUrl(thumbnailUrl);
-      } catch {}
+      } catch { }
+      refreshSavedPins();
       setIsPopupOpen(false);
       setShowDetail(true);
       onRequestExpand?.();
@@ -353,20 +437,42 @@ function MapPreview({
           setShowDetail(false);
         }}
       >
-        <CustomMarker
-          position={position}
-          isFavorite={isSavedGlobally}
-          onClick={() => {
-            if (isSavedGlobally) {
-              setShowDetail(true);
-              setIsPopupOpen(false);
-              onRequestExpand?.();
-            } else {
+        {!isSavedGlobally && selectedPlace && (
+          <CustomMarker
+            position={position}
+            isFavorite={false}
+            onClick={() => {
               setIsPopupOpen(true);
               setShowDetail(false);
-            }
-          }}
-        />
+            }}
+          />
+        )}
+
+        {savedPins.map((it) => {
+          const lat = Number(it.place.latitude);
+          const lng = Number(it.place.longitude);
+          if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+
+          const thisPlaceId = it.place.place_id ?? it.place.placeId;
+          const selectedId = selectedPlace?.placeId;
+          const isSelected = selectedId && selectedId === thisPlaceId;
+          return (
+            <CustomMarker
+              key={`wl-${it.id}`}
+              position={{ lat, lng }}
+              isFavorite
+              isSelected={!!isSelected}
+              onClick={() => {
+                setIsPopupOpen(false);
+                setIsSavedGlobally(true);
+                onSelectPlace?.({ ...it.place, placeId: thisPlaceId });
+                setShowDetail(true);
+                onRequestExpand?.();
+                map?.panTo({ lat, lng });
+              }}
+            />
+          )
+        })}
 
         {isPopupOpen && !isSavedGlobally && (
           <div
@@ -425,6 +531,7 @@ function MapPreview({
           onSelect={handleSelectWishlistItem}
           onRemove={handleRemoveWishlist}
           onAddToPlan={handleAddToPlanFromWishlist}
+          totalCount={totalFavCount}
         />
       )}
     </div>

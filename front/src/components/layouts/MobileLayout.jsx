@@ -18,16 +18,15 @@ function MobileLayout({ id, relatedVideos, channels, currentVideo }) {
   const [placeName, setPlaceName] = useState("");
   const [isDraggingMap, setIsDraggingMap] = useState(false);
   const [selectedPlace, setSelectedPlace] = useState(null);
-
-  // 配列で渡すためのスナップポイント
+  const [wishlistTotal, setWishlistTotal] = useState(null);
+  const masked = (wishlistTotal === 0 || wishlistTotal === null) && !selectedPlace;
   const [snapPoints, setSnapPoints] = useState([560, 360]);
 
   const isDesktop = typeof window !== "undefined" &&
     window.matchMedia?.("(hover: hover) and (pointer: fine)").matches;
 
-  // “いま実際に見えている高さ”から安全なスナップ値を算出
   const computeSnapPoints = () => {
-    const clientH = document.documentElement?.clientHeight || 0; // 最優先（PCで安定）
+    const clientH = document.documentElement?.clientHeight || 0;
     const vvH = window.visualViewport?.height || 0;
     const winH = window.innerHeight || 0;
     const vh = clientH || vvH || winH || 800;
@@ -37,22 +36,19 @@ function MobileLayout({ id, relatedVideos, channels, currentVideo }) {
         getComputedStyle(document.documentElement).getPropertyValue("--header-h")
       ) || 0;
 
-    // デスクトップでは余裕を少し大きめに取る
     const SLOP = isDesktop ? 48 : 24;
 
     const maxUsable = Math.max(0, vh - headerH - SLOP);
 
-    const full = Math.max(420, Math.floor(maxUsable));     // はみ出さない最大
-    const mid  = Math.min(400, Math.round(full * 0.6));     // 中段（使いやすい高さ）
+    const full = Math.max(420, Math.floor(maxUsable));
+    const mid  = Math.min(400, Math.round(full * 0.6));
     return [full, mid];
   };
 
-  // 初期計算
   useLayoutEffect(() => {
     setSnapPoints(computeSnapPoints());
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // リサイズにだけ追従（scrollは監視しない）
   useEffect(() => {
     const onResize = () => setSnapPoints(computeSnapPoints());
     window.addEventListener("resize", onResize);
@@ -63,7 +59,6 @@ function MobileLayout({ id, relatedVideos, channels, currentVideo }) {
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // 開閉に合わせて body スクロールをロック（安定化）
   useEffect(() => {
     const prev = document.body.style.overflow;
     if (isSheetOpen) {
@@ -76,16 +71,23 @@ function MobileLayout({ id, relatedVideos, channels, currentVideo }) {
     };
   }, [isSheetOpen]);
 
-  // 開いた瞬間に再計算＆再スナップ（遅延ロード由来のズレ吸収）
   useEffect(() => {
     if (!isSheetOpen) return;
     setSnapPoints(computeSnapPoints());
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
-        sheetRef.current?.snapTo(0); // 0 = 最大スナップ
+        sheetRef.current?.snapTo(0);
       });
     });
   }, [isSheetOpen]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (isSheetOpen) {
+      setIsMapOpen(true);
+    } else {
+      setIsMapOpen(false);
+    }
+  }, [isSheetOpen]);
 
   const handleSelectPlace = (p) => {
     const lat = Number(p.latitude);
@@ -100,7 +102,7 @@ function MobileLayout({ id, relatedVideos, channels, currentVideo }) {
   const expandSheetToMax = () => {
     setIsSheetOpen(true);
     requestAnimationFrame(() => {
-      sheetRef.current?.snapTo(0); // 0 = 最大スナップ
+      sheetRef.current?.snapTo(0);
     });
   };
 
@@ -110,7 +112,6 @@ function MobileLayout({ id, relatedVideos, channels, currentVideo }) {
         display: "flex",
         flexDirection: "column",
         minHeight: "100dvh",
-        // シート閉時だけ、下固定の検索バーぶん余白を確保
         paddingBottom: isSheetOpen
           ? 0
           : "calc(var(--bottom-bar-h) + env(safe-area-inset-bottom, 0px))",
@@ -132,7 +133,6 @@ function MobileLayout({ id, relatedVideos, channels, currentVideo }) {
         ))}
       </div>
 
-      {/* 画面下固定の検索バー（シート表示時は透明化 & クリック無効化） */}
       <div
         style={{
           position: "fixed",
@@ -150,7 +150,6 @@ function MobileLayout({ id, relatedVideos, channels, currentVideo }) {
         <MapSearchBar onFocus={() => setIsSheetOpen(true)} />
       </div>
 
-      {/* シート */}
       <Sheet
         ref={sheetRef}
         isOpen={isSheetOpen}
@@ -163,7 +162,6 @@ function MobileLayout({ id, relatedVideos, channels, currentVideo }) {
           style={{
             zIndex: 2000,
             overflow: "hidden",
-            // 念のための上限（シート内の内部再計測で伸びすぎるのを防ぐ）
             maxHeight: "calc(100dvh - var(--header-h) - 8px)",
           }}
         >
@@ -171,7 +169,6 @@ function MobileLayout({ id, relatedVideos, channels, currentVideo }) {
             <PlaceAutocomplete onPlaceSelect={handleSelectPlace} />
           </Sheet.Header>
 
-          {/* 可視領域フィット：1fr + 安全域 */}
           <Sheet.Content
             disableDrag={isDraggingMap}
             style={{
@@ -181,7 +178,7 @@ function MobileLayout({ id, relatedVideos, channels, currentVideo }) {
               minHeight: 0,
             }}
           >
-            <div
+            {/* <div
               style={{ minHeight: 0 }}
               onTouchStart={() => setIsDraggingMap(true)}
               onTouchEnd={() => setIsDraggingMap(false)}
@@ -190,13 +187,67 @@ function MobileLayout({ id, relatedVideos, channels, currentVideo }) {
             >
               {isMapOpen && (
                 <MapPreview
-                  key={`${position.lat}-${position.lng}`}
                   position={position}
                   placeName={placeName}
                   selectedPlace={selectedPlace}
                   currentVideo={currentVideo}
                   onRequestExpand={expandSheetToMax}
+                  onSelectPlace={handleSelectPlace}
                 />
+              )}
+            </div> */}
+            <div style={{ position: "relative", minHeight: 0 }}>
+              {isMapOpen && (
+                <>
+                  <div
+                    style={{ position: "absolute", inset: 0 }}
+                    onTouchStart={() => !masked && setIsDraggingMap(true)}
+                    onTouchEnd={() => setIsDraggingMap(false)}
+                    onMouseEnter={() => !masked && setIsDraggingMap(true)}
+                    onMouseLeave={() => setIsDraggingMap(false)}
+                  >
+                    <MapPreview
+                      position={position}
+                      placeName={placeName}
+                      selectedPlace={selectedPlace}
+                      currentVideo={currentVideo}
+                      onRequestExpand={expandSheetToMax}
+                      onSelectPlace={handleSelectPlace}
+                      onWishlistTotalChange={setWishlistTotal}
+                    />
+                  </div>
+
+                  <div
+                    aria-hidden
+                    style={{
+                      position: "absolute",
+                      inset: 0,
+                      background: "rgba(0,0,0,0.35)",
+                      backdropFilter: "blur(1px)",
+                      transition: "opacity .25s ease",
+                      opacity: masked ? 1 : 0,
+                      pointerEvents: masked ? "auto" : "none",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      color: "#444",
+                      fontSize: 14,
+                      fontWeight: "bold",
+                      zIndex: 2,
+                    }}
+                  >
+                    <div
+                      style={{
+                        padding: "8px 12px",
+                        background: "rgba(255,255,255)",
+                        borderRadius: 8,
+                        border: "1px solid rgba(255,255,255,0.2)",
+                      }}
+                    >
+                      ↑検索バーで行きたい場所を検索してください
+                    </div>
+                  </div>
+                </>
               )}
             </div>
 
