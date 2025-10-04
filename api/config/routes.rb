@@ -10,6 +10,14 @@ Rails.application.routes.draw do
       end
     end
 
+    resources :travel_plans, only: [:index, :create, :destroy, :update, :show] do
+      get :contains, on: :collection
+
+      resources :items, controller: "travel_plan_items", only: [:index, :create, :destroy] do
+        patch :reorder, on: :collection
+      end
+    end
+
     resource :registration, only: [:create]
     resource :session, only: [:create, :destroy]
   end

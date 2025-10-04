@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_09_20_080931) do
+ActiveRecord::Schema[8.0].define(version: 2025_10_04_161709) do
   create_table "places", charset: "utf8mb4", collation: "utf8mb4_0900_ai_ci", force: :cascade do |t|
     t.string "name", null: false
     t.string "address", null: false
@@ -20,6 +20,27 @@ ActiveRecord::Schema[8.0].define(version: 2025_09_20_080931) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["place_id"], name: "index_places_on_place_id", unique: true
+  end
+
+  create_table "travel_plan_items", charset: "utf8mb4", collation: "utf8mb4_unicode_ci", force: :cascade do |t|
+    t.bigint "travel_plan_id", null: false
+    t.bigint "place_id", null: false
+    t.integer "sort_order", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["place_id"], name: "index_travel_plan_items_on_place_id"
+    t.index ["travel_plan_id", "place_id"], name: "index_travel_plan_items_on_travel_plan_id_and_place_id", unique: true
+    t.index ["travel_plan_id", "sort_order"], name: "index_travel_plan_items_on_travel_plan_id_and_sort_order"
+    t.index ["travel_plan_id"], name: "index_travel_plan_items_on_travel_plan_id"
+  end
+
+  create_table "travel_plans", charset: "utf8mb4", collation: "utf8mb4_unicode_ci", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.string "name", limit: 100, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["user_id", "name"], name: "index_travel_plans_on_user_id_and_name", unique: true
+    t.index ["user_id"], name: "index_travel_plans_on_user_id"
   end
 
   create_table "user_credentials", charset: "utf8mb4", collation: "utf8mb4_unicode_ci", force: :cascade do |t|
@@ -74,6 +95,9 @@ ActiveRecord::Schema[8.0].define(version: 2025_09_20_080931) do
     t.index ["user_id"], name: "index_wishlists_on_user_id"
   end
 
+  add_foreign_key "travel_plan_items", "places"
+  add_foreign_key "travel_plan_items", "travel_plans"
+  add_foreign_key "travel_plans", "users"
   add_foreign_key "user_credentials", "users"
   add_foreign_key "user_visits", "users"
   add_foreign_key "video_view_places", "places"
