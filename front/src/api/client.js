@@ -26,14 +26,15 @@ export async function apiFetch(url, options = {}) {
   if (token) headers.set("X-Visitor-Token", token);
 
   const res = await fetch(url, { ...options, headers });
-
   updateTokenFromResponse(res);
-
   return res;
 }
 
+const inflightGetJson = new Map();
 export async function apiFetchJson(url, options = {}) {
   const { body, headers: hdrs, ...rest } = options;
+  const method = (rest.method || "GET").toUpperCase();
+  const isGetLike = method === "GET" && !body;
   const headers = new Headers(hdrs || {});
   const token = getVisitorToken();
   if (token) headers.set("X-Visitor-Token", token);
@@ -45,19 +46,30 @@ export async function apiFetchJson(url, options = {}) {
     outBody = JSON.stringify(decamelizeKeys(outBody));
   }
 
-  const res = await fetch(url, { ...rest, headers, body: outBody });
+  const doFetch = async () => {
+    const res = await fetch(url, { ...rest, headers, body: outBody });
+    updateTokenFromResponse(res);
+    const text = await res.text();
+    const raw = text ? JSON.parse(text) : null;
+    const data = raw != null ? camelizeKeys(raw) : null;
 
-  updateTokenFromResponse(res);
+    if (!res.ok) {
+      const err = new Error(`HTTP ${res.status}`);
+      err.status = res.status;
+      err.data = data;
+      throw err;
+    }
+    return data;
+  };
 
-  const text = await res.text();
-  const raw = text ? JSON.parse(text) : null;
-  const data = raw != null ? camelizeKeys(raw) : null;
-
-  if (!res.ok) {
-    const err = new Error(`HTTP ${res.status}`);
-    err.status = res.status;
-    err.data = data;
-    throw err;
+  if (isGetLike) {
+    if (inflightGetJson.has(url)) {
+      return inflightGetJson.get(url);
+    }
+    const p = doFetch().finally(() => inflightGetJson.delete(url));
+    inflightGetJson.set(url, p);
+    return p;
   }
-  return data;
+
+  return doFetch();
 }
