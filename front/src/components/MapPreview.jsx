@@ -4,6 +4,7 @@ import CustomMarker from "./CustomMarker";
 import IconPillButton from "./IconPillButton";
 import MapPopup from "./MapPopup";
 import PlaceDetailCard from "./PlaceDetailCard";
+import TravelPlanModal from "./TravelPlanModal";
 import { createBookmark } from "../api/bookmarks";
 import {
   totalCountWishlists,
@@ -11,6 +12,18 @@ import {
   listWishlists,
   deleteWishlist,
 } from "../api/wishlists";
+import {
+  listTravelPlans,
+  listPlanItems,
+  plansContainingPlace,
+  removePlanItem,
+} from "../api/travel_plans";
+import { getPlaceId } from "../utils/place";
+import {
+  ensureMembershipsForPlaceIds,
+  primePlanMembership,
+  invalidatePlanMembership,
+} from "../state/planMembershipCache";
 
 function WishlistPanel({
   heightPx = 280,
@@ -24,6 +37,8 @@ function WishlistPanel({
   onRemove,
   onAddToPlan,
   totalCount,
+  planByPlaceId,
+  onRemoveFromPlan,
 }) {
   const sentinelRef = useRef(null);
 
@@ -99,19 +114,24 @@ function WishlistPanel({
       <div style={{ flex: 1, overflowY: "auto", padding: 12, gap: 10, display: "grid" }}>
         {items.length === 0 && !loading && <div style={{ color: "#666" }}>まだ保存がありません</div>}
 
-        {items.map((it) => (
-          <PlaceDetailCard
-            key={it.id}
-            variant="inline"
-            place={it.place}
-            thumbnailUrl={it.thumbnailUrl}
-            isSaved
-            isSaving={false}
-            onRemove={() => onRemove?.(it.id)}
-            onAddToPlan={() => onAddToPlan?.(it)}
-            onRootClick={() => onSelect(it)}
-          />
-        ))}
+        {items.map((it) => {
+          const pid = getPlaceId(it.place);
+          return (
+            <PlaceDetailCard
+              key={it.id}
+              variant="inline"
+              place={it.place}
+              thumbnailUrl={it.thumbnailUrl}
+              isSaved
+              isSaving={false}
+              onRemove={() => onRemove?.(it.id)}
+              onAddToPlan={() => onAddToPlan?.(it)}
+              planMembership={planByPlaceId?.[pid]}
+              onRemoveFromPlan={() => onRemoveFromPlan?.(pid)}
+              onRootClick={() => onSelect(it)}
+            />
+          );
+        })}
 
         <div ref={sentinelRef} style={{ height: 1 }} />
         {loading && <div style={{ padding: "8px 0", textAlign: "center", color: "#666" }}>読み込み中…</div>}
@@ -137,6 +157,9 @@ function MapPreview({
   const [isPopupOpen, setIsPopupOpen] = useState(false);
   const [showDetail, setShowDetail] = useState(false);
 
+  const [savedPins, setSavedPins] = useState([]);
+  const [planPins, setPlanPins] = useState([]);
+
   const [showWishlist, setShowWishlist] = useState(false);
   const [wlItems, setWlItems] = useState([]);
   const [wlNext, setWlNext] = useState(1);
@@ -157,14 +180,18 @@ function MapPreview({
   const [placeThumbUrl, setPlaceThumbUrl] = useState(null);
   const [currentWishlistId, setCurrentWishlistId] = useState(null);
 
-  const [savedPins, setSavedPins] = useState([]);
+  const [showPlanModal, setShowPlanModal] = useState(false);
+  const [planMembership, setPlanMembership] = useState(null);
+  const [modalPlace, setModalPlace] = useState(null);
+  const [planByPlaceId, setPlanByPlaceId] = useState({});
+  const [modalSource, setModalSource] = useState(null);
 
   const refreshSavedPins = useCallback(async () => {
     try {
       const acc = [];
       let page = 1;
       const per = 200;
-      for (; ;) {
+      for (;;) {
         const data = await listWishlists({ page, per });
         const items = data.items || [];
         acc.push(...items);
@@ -180,6 +207,54 @@ function MapPreview({
       );
     } catch (e) {
       console.warn("refreshSavedPins failed:", e);
+    }
+  }, []);
+
+  const refreshPlanPins = useCallback(async () => {
+    try {
+      const plansRes = await listTravelPlans({ page: 1, per: 200 });
+      const plans = plansRes.items || [];
+      if (plans.length === 0) {
+        setPlanPins([]);
+        return;
+      }
+
+      const itemsArrays = await Promise.all(
+        plans.map((p) => listPlanItems({ planId: p.id }).catch(() => ({ items: [] })))
+      );
+
+      const acc = [];
+      itemsArrays.forEach((res, idx) => {
+        const p = plans[idx];
+        (res.items || []).forEach((item) => {
+          acc.push({
+            planId: p.id,
+            planName: p.name,
+            itemId: item.id,
+            place: item.place,
+          });
+        });
+      });
+
+      const seen = new Set();
+      const uniq = [];
+      for (const it of acc) {
+        const pid = getPlaceId(it.place);
+        if (!pid) continue;
+        if (seen.has(pid)) continue;
+        seen.add(pid);
+        uniq.push(it);
+      }
+
+      setPlanPins(
+        uniq.filter(
+          (it) =>
+            Number.isFinite(Number(it.place?.latitude)) &&
+            Number.isFinite(Number(it.place?.longitude))
+        )
+      );
+    } catch (e) {
+      console.warn("refreshPlanPins failed:", e);
     }
   }, []);
 
@@ -199,7 +274,6 @@ function MapPreview({
     },
     [wlLoading, wlNext]
   );
-
   const handleLoadMore = useCallback(() => loadWishlist(), [loadWishlist]);
 
   const handleOpenWishlist = useCallback(async () => {
@@ -229,7 +303,7 @@ function MapPreview({
       const lat = Number(it?.place?.latitude);
       const lng = Number(it?.place?.longitude);
       if (Number.isFinite(lat) && Number.isFinite(lng)) {
-        onSelectPlace?.({ ...it.place, placeId: it.place.place_id ?? it.place.placeId });
+        onSelectPlace?.({ ...it.place, placeId: getPlaceId(it.place) });
         map?.panTo({ lat, lng });
       }
       setShowWishlist(false);
@@ -257,10 +331,17 @@ function MapPreview({
     [currentWishlistId, refreshSavedPins]
   );
 
-  const handleAddToPlanFromWishlist = useCallback((item) => {
-    console.log("[Wishlist] add-to-plan click:", item);
-    alert(`旅行プランに追加（仮）: ${item.place?.name ?? "(no name)"}`);
-  }, []);
+  const handleAddToPlanFromWishlist = useCallback(
+    (item) => {
+      const pid = getPlaceId(item?.place);
+      setModalSource({ type: "wishlist", placeId: pid, wishlistId: item.id });
+      setModalPlace({ ...item.place, placeId: pid });
+      onRequestExpand?.();
+      onUnmask?.();
+      setShowPlanModal(true);
+    },
+    [onRequestExpand, onUnmask]
+  );
 
   useEffect(() => {
     if (!map) return;
@@ -286,10 +367,29 @@ function MapPreview({
 
   useEffect(() => {
     refreshSavedPins();
-  }, [refreshSavedPins]);
+    refreshPlanPins();
+  }, [refreshSavedPins, refreshPlanPins]);
 
   useEffect(() => {
-    const pid = selectedPlace?.placeId;
+    if (!wlItems?.length) return;
+    const pids = wlItems.map((it) => getPlaceId(it.place)).filter(Boolean);
+    (async () => {
+      const map = await ensureMembershipsForPlaceIds(pids);
+      setPlanByPlaceId((prev) => ({ ...prev, ...map }));
+    })();
+  }, [wlItems]);
+
+  useEffect(() => {
+    if (!savedPins?.length) return;
+    const pids = savedPins.map((it) => getPlaceId(it.place)).filter(Boolean);
+    (async () => {
+      const map = await ensureMembershipsForPlaceIds(pids);
+      setPlanByPlaceId((prev) => ({ ...prev, ...map }));
+    })();
+  }, [savedPins]);
+
+  useEffect(() => {
+    const pid = getPlaceId(selectedPlace);
     if (!pid) return;
     (async () => {
       try {
@@ -302,6 +402,27 @@ function MapPreview({
         setIsSavedGlobally(false);
         setPlaceThumbUrl(null);
         setCurrentWishlistId(null);
+      }
+      try {
+        const res = await plansContainingPlace({ placeId: pid });
+        const first = (res?.plans || []).find((p) => p.hasPlace);
+        if (first) {
+          const mem = { planId: first.id, planName: first.name, itemId: first.itemId };
+          setPlanMembership(mem);
+          primePlanMembership(pid, mem);
+          setPlanByPlaceId((prev) => ({ ...prev, [pid]: mem }));
+        } else {
+          setPlanMembership(null);
+          primePlanMembership(pid, undefined);
+          setPlanByPlaceId((prev) => {
+            const next = { ...prev };
+            delete next[pid];
+            return next;
+          });
+        }
+      } catch (e) {
+        console.warn("plan contains init failed:", e);
+        setPlanMembership(null);
       }
     })();
   }, [selectedPlace?.placeId]);
@@ -316,14 +437,12 @@ function MapPreview({
   useEffect(() => {
     onWishlistTotalChange?.(totalFavCount);
   }, [totalFavCount, onWishlistTotalChange]);
-
   useEffect(() => {
     return () => onWishlistTotalChange?.(null);
   }, [onWishlistTotalChange]);
 
   useEffect(() => {
     if (didAutoCenter.current) return;
-
     if (totalFavCount > 0 && !selectedPlace) {
       (async () => {
         try {
@@ -332,7 +451,7 @@ function MapPreview({
           const lat = Number(latest?.place?.latitude);
           const lng = Number(latest?.place?.longitude);
           if (Number.isFinite(lat) && Number.isFinite(lng)) {
-            const placeId = latest.place.place_id ?? latest.place.placeId;
+            const placeId = getPlaceId(latest.place);
             onSelectPlace?.({ ...latest.place, placeId });
             map?.panTo({ lat, lng });
             didAutoCenter.current = true;
@@ -356,7 +475,7 @@ function MapPreview({
           search_history_id: null,
         },
         place: {
-          placeId: selectedPlace.placeId,
+          placeId: getPlaceId(selectedPlace),
           name: selectedPlace.name,
           address: selectedPlace.address,
           latitude: selectedPlace.latitude,
@@ -370,11 +489,11 @@ function MapPreview({
       } catch {}
       try {
         const { wishlistId, thumbnailUrl } = await wishlistsStatus({
-          placeId: selectedPlace.placeId,
+          placeId: getPlaceId(selectedPlace),
         });
         setCurrentWishlistId(wishlistId ?? null);
         if (thumbnailUrl) setPlaceThumbUrl(thumbnailUrl);
-      } catch { }
+      } catch {}
       refreshSavedPins();
       setIsPopupOpen(false);
       setShowDetail(true);
@@ -388,11 +507,10 @@ function MapPreview({
   };
 
   const containerHeight =
-    mapHeight != null
-      ? typeof mapHeight === "number"
-        ? `${mapHeight}px`
-        : mapHeight
-      : "100%";
+    mapHeight != null ? (typeof mapHeight === "number" ? `${mapHeight}px` : mapHeight) : "100%";
+
+  const savedPidSet = new Set(savedPins.map((it) => getPlaceId(it.place)).filter(Boolean));
+  const selectedPid = getPlaceId(selectedPlace);
 
   return (
     <div style={{ height: containerHeight, width: "100%", position: "relative" }}>
@@ -417,11 +535,11 @@ function MapPreview({
         />
         <IconPillButton
           label="旅行プランを表示"
-          iconSrc={isSaved ? "/filledluggage.svg" : "/luggage.svg"}
+          iconSrc={"/filledluggage.svg"}
           iconAlt="旅行プラン"
           onAction={() => {
             onUnmask?.();
-            alert("旅行プラン機能は準備中です")
+            alert("旅行プラン機能は準備中です");
           }}
         />
       </div>
@@ -441,9 +559,17 @@ function MapPreview({
           <CustomMarker
             position={position}
             isFavorite={false}
+            isSelected={true}
+            inPlan={!!planMembership}
             onClick={() => {
-              setIsPopupOpen(true);
-              setShowDetail(false);
+              if (planMembership) {
+                setIsPopupOpen(false);
+                setShowDetail(true);
+                onRequestExpand?.();
+              } else {
+                setIsPopupOpen(true);
+                setShowDetail(false);
+              }
             }}
           />
         )}
@@ -453,15 +579,16 @@ function MapPreview({
           const lng = Number(it.place.longitude);
           if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
 
-          const thisPlaceId = it.place.place_id ?? it.place.placeId;
-          const selectedId = selectedPlace?.placeId;
-          const isSelected = selectedId && selectedId === thisPlaceId;
+          const thisPlaceId = getPlaceId(it.place);
+          const isSelected = selectedPid && selectedPid === thisPlaceId;
+
           return (
             <CustomMarker
               key={`wl-${it.id}`}
               position={{ lat, lng }}
               isFavorite
               isSelected={!!isSelected}
+              inPlan={Boolean(planByPlaceId[thisPlaceId])}
               onClick={() => {
                 setIsPopupOpen(false);
                 setIsSavedGlobally(true);
@@ -471,8 +598,43 @@ function MapPreview({
                 map?.panTo({ lat, lng });
               }}
             />
-          )
+          );
         })}
+
+        {planPins
+          .filter((it) => {
+            const pid = getPlaceId(it.place);
+            if (!pid) return false;
+            if (savedPidSet.has(pid)) return false;
+            if (selectedPid && pid === selectedPid) return false;
+            return true;
+          })
+          .map((it) => {
+            const lat = Number(it.place.latitude);
+            const lng = Number(it.place.longitude);
+            if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+
+            const pid = getPlaceId(it.place);
+            const isSelected = selectedPid && selectedPid === pid;
+
+            return (
+              <CustomMarker
+                key={`plan-${it.planId}-${it.itemId}-${pid}`}
+                position={{ lat, lng }}
+                isFavorite={false}
+                isSelected={!!isSelected}
+                inPlan={true}
+                onClick={() => {
+                  setIsPopupOpen(false);
+                  setIsSavedGlobally(false);
+                  onSelectPlace?.({ ...it.place, placeId: pid });
+                  setShowDetail(true);
+                  onRequestExpand?.();
+                  map?.panTo({ lat, lng });
+                }}
+              />
+            );
+          })}
 
         {isPopupOpen && !isSavedGlobally && (
           <div
@@ -489,7 +651,7 @@ function MapPreview({
               message="行きたい場所リストに追加しますか？"
               confirmLabel={isSaving ? "保存中..." : "追加する"}
               cancelLabel="キャンセル"
-              confirmDisabled={isSaving || !currentVideo?.id || !selectedPlace?.placeId}
+              confirmDisabled={isSaving || !currentVideo?.id || !getPlaceId(selectedPlace)}
               onConfirm={handleAddFavorite}
               onCancel={() => setIsPopupOpen(false)}
             />
@@ -497,14 +659,22 @@ function MapPreview({
         )}
       </Map>
 
-      {showDetail && isSavedGlobally && (
+      {showDetail && (isSavedGlobally || !!planMembership) && (
         <PlaceDetailCard
           variant="overlay"
           place={selectedPlace}
           thumbnailUrl={placeThumbUrl ?? currentVideo?.thumbnail ?? null}
-          isSaved
+          isSaved={isSavedGlobally}
           isSaving={isSaving}
-          onAdd={undefined}
+          onAdd={() => {
+            if (isSaving) return;
+            const pid = getPlaceId(selectedPlace);
+            if (!currentVideo?.id || !pid) {
+              alert("追加できません（動画または場所情報が不足しています）。");
+              return;
+            }
+            handleAddFavorite();
+          }}
           onRemove={() => {
             if (currentWishlistId) {
               handleRemoveWishlist(currentWishlistId);
@@ -512,11 +682,58 @@ function MapPreview({
               alert("削除対象のIDが取得できませんでした。");
             }
           }}
-          onAddToPlan={() => alert("旅行プランに追加（仮）")}
+          onAddToPlan={() => {
+            onRequestExpand?.();
+            onUnmask?.();
+            setModalSource({ type: "detail", placeId: getPlaceId(selectedPlace) });
+            setModalPlace(selectedPlace);
+            setShowPlanModal(true);
+          }}
+          planMembership={planMembership}
+          onRemoveFromPlan={async () => {
+            if (!planMembership) return;
+            try {
+              await removePlanItem({ planId: planMembership.planId, itemId: planMembership.itemId });
+              const pid = getPlaceId(selectedPlace);
+              invalidatePlanMembership(pid);
+              setPlanMembership(null);
+              setPlanByPlaceId((prev) => {
+                const next = { ...prev };
+                delete next[pid];
+                return next;
+              });
+              setPlanPins((prev) => prev.filter((it) => getPlaceId(it.place) !== pid));
+            } catch (e) {
+              console.error(e);
+              alert("旅行プランから削除に失敗しました。");
+            }
+          }}
           onClose={() => setShowDetail(false)}
           thumbWidth={120}
           thumbHeight={100}
           overlayOffset="clamp(24px, 5vh, 56px)"
+        />
+      )}
+
+      {showPlanModal && modalPlace && (
+        <TravelPlanModal
+          place={modalPlace}
+          onClose={() => setShowPlanModal(false)}
+          onAdded={({ planId, planName, itemId }) => {
+            setShowPlanModal(false);
+            const pid = modalSource?.placeId;
+            if (pid) {
+              const mem = { planId, planName, itemId };
+              primePlanMembership(pid, mem);
+              setPlanByPlaceId((prev) => ({ ...prev, [pid]: mem }));
+              refreshPlanPins();
+            }
+            if (getPlaceId(selectedPlace) && getPlaceId(modalPlace) === getPlaceId(selectedPlace)) {
+              setPlanMembership({ planId, planName, itemId });
+              setShowDetail(true);
+              onRequestExpand?.();
+            }
+          }}
         />
       )}
 
@@ -532,6 +749,25 @@ function MapPreview({
           onRemove={handleRemoveWishlist}
           onAddToPlan={handleAddToPlanFromWishlist}
           totalCount={totalFavCount}
+          planByPlaceId={planByPlaceId}
+          onRemoveFromPlan={async (placeId) => {
+            const mem = planByPlaceId[placeId];
+            if (!mem) return;
+            try {
+              await removePlanItem({ planId: mem.planId, itemId: mem.itemId });
+              invalidatePlanMembership(placeId);
+              setPlanByPlaceId((prev) => {
+                const next = { ...prev };
+                delete next[placeId];
+                return next;
+              });
+              if (getPlaceId(selectedPlace) === placeId) setPlanMembership(null);
+              setPlanPins((prev) => prev.filter((it) => getPlaceId(it.place) !== placeId));
+            } catch (e) {
+              console.error(e);
+              alert("旅行プランからの削除に失敗しました。");
+            }
+          }}
         />
       )}
     </div>

@@ -1,3 +1,4 @@
+// src/components/PlaceDetailCard.jsx
 export default function PlaceDetailCard({
   place,
   thumbnailUrl,
@@ -6,12 +7,13 @@ export default function PlaceDetailCard({
   onAdd,
   onRemove,
   onAddToPlan,
+  planMembership,
+  onRemoveFromPlan,
   onClose,
   variant = "overlay",
   onRootClick,
   thumbWidth = "28%",
   thumbHeight,
-  // 追加：オーバーレイ時の“下からの持ち上げ量”
   overlayOffset = "clamp(24px, 5vh, 56px)",
 }) {
   if (!place) return null;
@@ -49,6 +51,16 @@ export default function PlaceDetailCard({
 
   const title = place.name || "場所";
   const address = place.address || "—";
+
+  const linkBtnStyle = (enabled = true) => ({
+    background: "none",
+    border: "none",
+    color: enabled ? "#007aff" : "#aaa",
+    textDecoration: "underline",
+    cursor: enabled ? "pointer" : "default",
+    padding: 0,
+    font: "inherit",
+  });
 
   const renderContent = () => (
     <>
@@ -126,6 +138,7 @@ export default function PlaceDetailCard({
           <span style={{ marginLeft: "auto" }}>▾</span>
         </div>
 
+        {/* お気に入り（行きたい）操作行 */}
         <div
           style={{
             marginTop: 10,
@@ -145,14 +158,7 @@ export default function PlaceDetailCard({
                   onRemove?.();
                 }}
                 disabled={!onRemove}
-                style={{
-                  background: "none",
-                  border: "none",
-                  color: onRemove ? "#007aff" : "#aaa",
-                  textDecoration: "underline",
-                  cursor: onRemove ? "pointer" : "default",
-                  padding: 0,
-                }}
+                style={linkBtnStyle(!!onRemove)}
               >
                 削除
               </button>
@@ -162,44 +168,56 @@ export default function PlaceDetailCard({
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
-                onAdd?.();
+                if (!isSaving) onAdd?.();
               }}
-              disabled={isSaving}
-              style={{
-                background: "#2CA478",
-                color: "#fff",
-                border: "none",
-                padding: "8px 14px",
-                borderRadius: 999,
-                fontWeight: 700,
-                cursor: "pointer",
-                opacity: isSaving ? 0.6 : 1,
-              }}
+              disabled={isSaving || !onAdd}
+              style={linkBtnStyle(!(isSaving || !onAdd))}
             >
-              {isSaving ? "保存中..." : "追加する"}
+              {isSaving ? "保存中..." : "いきたい場所リストに追加"}
             </button>
           )}
         </div>
 
-        <div style={{ marginTop: 8 }}>
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onAddToPlan?.();
-            }}
-            disabled={!onAddToPlan}
-            style={{
-              background: "none",
-              border: "none",
-              color: onAddToPlan ? "#007aff" : "#aaa",
-              textDecoration: "underline",
-              cursor: onAddToPlan ? "pointer" : "default",
-              padding: 0,
-            }}
-          >
-            旅行プランに追加
-          </button>
+        {/* 旅行プラン操作行 */}
+        <div
+          style={{
+            marginTop: 10,
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+            flexWrap: "wrap",
+          }}
+        >
+          {planMembership ? (
+            <>
+              <span style={{ color: "#2CA478", fontWeight: 700 }}>
+                「{planMembership.planName}」
+              </span>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onRemoveFromPlan?.();
+                }}
+                disabled={!onRemoveFromPlan}
+                style={linkBtnStyle(!!onRemoveFromPlan)}
+              >
+                削除
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onAddToPlan?.();
+              }}
+              disabled={!onAddToPlan}
+              style={linkBtnStyle(!!onAddToPlan)}
+            >
+              旅行プランに追加
+            </button>
+          )}
         </div>
       </div>
 
