@@ -50,11 +50,57 @@ class Api::WishlistsController < ApplicationController
     }
   end
 
+  def create
+    p = place_params
+    pid = p[:place_id]
+    raise ActionController::ParameterMissing, :place_id if pid.blank?
+
+    place = Place.find_or_initialize_by(place_id: pid)
+    if place.new_record?
+      place.name      = p[:name]
+      place.address   = p[:address]
+      place.latitude  = p[:latitude]
+      place.longitude = p[:longitude]
+      place.save!
+    end
+
+    wishlist = Wishlist.find_or_create_by!(user: current_user, place: place)
+
+    latest_vvp = place.video_view_places.includes(:video_view).order(created_at: :desc).first
+    thumb      = latest_vvp&.video_view&.thumbnail_url
+
+    render json: {
+      id: wishlist.id,
+      place: {
+        id: place.id,
+        place_id: place.place_id,
+        name: place.name,
+        address: place.address,
+        latitude: place.latitude,
+        longitude: place.longitude
+      },
+      thumbnail_url: thumb
+    }, status: :created
+  end
+
   def destroy
     wl = Wishlist.find_by(id: params[:id], user: current_user)
     return head :not_found unless wl
 
     wl.destroy!
     head :no_content
+  end
+
+  private
+
+  def place_params
+    raw = params.require(:place).permit(:place_id, :placeId, :name, :address, :latitude, :longitude)
+    {
+      place_id:  raw[:place_id] || raw[:placeId],
+      name:      raw[:name],
+      address:   raw[:address],
+      latitude:  raw[:latitude],
+      longitude: raw[:longitude]
+    }
   end
 end

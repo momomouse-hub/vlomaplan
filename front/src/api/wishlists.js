@@ -24,3 +24,10 @@ export async function deleteWishlist(id) {
   if (!res.ok && res.status !== 204) throw new Error(`deleteWishlist failed: ${res.status}`);
   return null;
 }
+
+export async function createWishlist({ place }) {
+  return apiFetchJson(`${base}/api/wishlists`, {
+    method: "POST",
+    body: { place },
+  });
+}

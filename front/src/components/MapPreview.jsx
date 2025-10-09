@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { useMap, Map } from "@vis.gl/react-google-maps";
 import CustomMarker from "./CustomMarker";
 import IconPillButton from "./IconPillButton";
@@ -14,6 +14,7 @@ import {
   wishlistsStatus,
   listWishlists,
   deleteWishlist,
+  createWishlist,
 } from "../api/wishlists";
 import {
   listTravelPlans,
@@ -27,6 +28,23 @@ import {
   primePlanMembership,
   invalidatePlanMembership,
 } from "../state/planMembershipCache";
+
+function normalizeWithLocalOrder(items) {
+  const sorted = [...(items || [])].sort((a, b) => {
+    const ao = Number.isFinite(Number(a.sort_order)) ? Number(a.sort_order) : Infinity;
+    const bo = Number.isFinite(Number(b.sort_order)) ? Number(b.sort_order) : Infinity;
+    if (ao !== bo) return ao - bo;
+    return String(a.id).localeCompare(String(b.id));
+  });
+  return sorted.map((it, i) => {
+    const base = Number.isFinite(Number(it.sort_order)) ? Number(it.sort_order) : i;
+    return { ...it, sort_order: base, sortOrder: base };
+  });
+}
+
+function renumber(items) {
+  return (items || []).map((it, i) => ({ ...it, sort_order: i, sortOrder: i }));
+}
 
 function MapPreview({
   position,
@@ -85,17 +103,19 @@ function MapPreview({
       const per = 200;
       for (;;) {
         const data = await listWishlists({ page, per });
-        const items = data.items || [];
-        acc.push(...items);
+        acc.push(...(data.items || []));
         const next = data.pagination?.next ?? null;
-        if (!next) break;
+        if (!next || page > 50) break;
         page = next;
-        if (page > 50) break;
       }
       setSavedPins(
         acc
           .map((it) => ({ id: it.id, place: it.place }))
-          .filter((it) => Number.isFinite(Number(it.place?.latitude)) && Number.isFinite(Number(it.place?.longitude)))
+          .filter(
+            (it) =>
+              Number.isFinite(Number(it.place?.latitude)) &&
+              Number.isFinite(Number(it.place?.longitude))
+          )
       );
     } catch (e) {
       console.warn("refreshSavedPins failed:", e);
@@ -105,12 +125,9 @@ function MapPreview({
   const refreshPlanPins = useCallback(async () => {
     try {
       const plansRes = await listTravelPlans({ page: 1, per: 200 });
-    const plans = plansRes.items || [];
+      const plans = plansRes.items || [];
       setHasAnyPlans(plans.length > 0);
-      if (plans.length === 0) {
-        setPlanPins([]);
-        return;
-      }
+      if (plans.length === 0) return setPlanPins([]);
 
       const itemsArrays = await Promise.all(
         plans.map((p) => listPlanItems({ planId: p.id }).catch(() => ({ items: [] })))
@@ -120,12 +137,7 @@ function MapPreview({
       itemsArrays.forEach((res, idx) => {
         const p = plans[idx];
         (res.items || []).forEach((item) => {
-          acc.push({
-            planId: p.id,
-            planName: p.name,
-            itemId: item.id,
-            place: item.place,
-          });
+          acc.push({ planId: p.id, planName: p.name, itemId: item.id, place: item.place });
         });
       });
 
@@ -133,8 +145,7 @@ function MapPreview({
       const uniq = [];
       for (const it of acc) {
         const pid = getPlaceId(it.place);
-        if (!pid) continue;
-        if (seen.has(pid)) continue;
+        if (!pid || seen.has(pid)) continue;
         seen.add(pid);
         uniq.push(it);
       }
@@ -205,7 +216,7 @@ function MapPreview({
     try {
       const res = await listPlanItems({ planId: plan.id });
       const items = res.items || [];
-      setViewPlanItems(items);
+      setViewPlanItems(normalizeWithLocalOrder(items));
 
       const nextMap = {};
       items.forEach((it) => {
@@ -221,10 +232,13 @@ function MapPreview({
     }
   }, []);
 
-  const handleChoosePlanToView = useCallback((plan) => {
-    setShowPlanPicker(false);
-    loadViewPlanItems(plan);
-  }, [loadViewPlanItems]);
+  const handleChoosePlanToView = useCallback(
+    (plan) => {
+      setShowPlanPicker(false);
+      loadViewPlanItems(plan);
+    },
+    [loadViewPlanItems]
+  );
 
   const handleCloseWishlist = useCallback(() => setShowWishlist(false), []);
 
@@ -362,7 +376,7 @@ function MapPreview({
     if (map && Number.isFinite(position?.lat) && Number.isFinite(position?.lng)) {
       map.panTo({ lat: position.lat, lng: position.lng });
     }
-  }, [position.lat, position.lng]);
+  }, [position.lat, position.lng, map]);
 
   useEffect(() => {
     onWishlistTotalChange?.(totalFavCount);
@@ -394,24 +408,32 @@ function MapPreview({
   }, [totalFavCount, selectedPlace, onSelectPlace, map]);
 
   const handleAddFavorite = async () => {
-    if (!selectedPlace || !currentVideo || isSaving || isSavedGlobally) return;
+    if (!selectedPlace || isSaving || isSavedGlobally) return;
     try {
       setIsSaving(true);
-      await createBookmark({
-        video_view: {
-          youtube_video_id: currentVideo.id,
-          title: currentVideo.title,
-          thumbnailUrl: currentVideo.thumbnail,
-          search_history_id: null,
-        },
-        place: {
-          placeId: getPlaceId(selectedPlace),
-          name: selectedPlace.name,
-          address: selectedPlace.address,
-          latitude: selectedPlace.latitude,
-          longitude: selectedPlace.longitude,
-        },
-      });
+
+      const placePayload = {
+        placeId: getPlaceId(selectedPlace),
+        name: selectedPlace.name,
+        address: selectedPlace.address,
+        latitude: selectedPlace.latitude,
+        longitude: selectedPlace.longitude,
+      };
+
+      if (currentVideo?.id) {
+        await createBookmark({
+          video_view: {
+            youtube_video_id: currentVideo.id,
+            title: currentVideo.title,
+            thumbnailUrl: currentVideo.thumbnail,
+            search_history_id: null,
+          },
+          place: placePayload,
+        });
+      } else {
+        await createWishlist({ place: placePayload });
+      }
+
       setIsSavedGlobally(true);
       try {
         const { totalCount } = await totalCountWishlists();
@@ -436,14 +458,47 @@ function MapPreview({
     }
   };
 
+  const wishlistByPlaceId = useMemo(() => {
+    const m = {};
+    for (const it of savedPins) {
+      const pid = getPlaceId(it.place);
+      if (pid) m[pid] = it.id;
+    }
+    return m;
+  }, [savedPins]);
+
+  const handleAddWishlistFromPlan = useCallback(
+    async (place) => {
+      try {
+        await createWishlist({
+          place: {
+            placeId: getPlaceId(place),
+            name: place.name,
+            address: place.address,
+            latitude: place.latitude,
+            longitude: place.longitude,
+          },
+        });
+        try {
+          const { totalCount } = await totalCountWishlists();
+          setTotalFavCount(Number(totalCount || 0));
+        } catch {}
+      } catch (e) {
+        console.error(e);
+        alert("行きたい場所リストへの追加に失敗しました。");
+      } finally {
+        refreshSavedPins();
+      }
+    },
+    [refreshSavedPins]
+  );
+
   const containerHeight =
     mapHeight != null ? (typeof mapHeight === "number" ? `${mapHeight}px` : mapHeight) : "100%";
 
   const savedPidSet = new Set(savedPins.map((it) => getPlaceId(it.place)).filter(Boolean));
   const selectedPid = getPlaceId(selectedPlace);
-
   const isDockedOpen = isViewingPlan || showWishlist;
-
   const mapRowSize = "minmax(180px, 34%)";
 
   return (
@@ -505,10 +560,8 @@ function MapPreview({
                   Number.isFinite(Number(it?.place?.longitude))
               )
               .sort((a, b) => {
-                const ao = a.sortOrder ?? a.sort_order;
-                const bo = b.sortOrder ?? b.sort_order;
-                const sa = Number.isFinite(Number(ao)) ? Number(ao) : 0;
-                const sb = Number.isFinite(Number(bo)) ? Number(bo) : 0;
+                const sa = Number.isFinite(Number(a.sortOrder)) ? Number(a.sortOrder) : 0;
+                const sb = Number.isFinite(Number(b.sortOrder)) ? Number(b.sortOrder) : 0;
                 return sa - sb;
               })
               .map((it) => {
@@ -516,16 +569,17 @@ function MapPreview({
                 const lng = Number(it.place.longitude);
                 const pid = getPlaceId(it.place);
                 const isSelected = selectedPid && selectedPid === pid;
-                const rawOrder = it.sortOrder ?? it.sort_order;
-                const orderForDisplay = Number.isFinite(Number(rawOrder)) ? Number(rawOrder) + 1 : undefined;
+                const orderForDisplay = Number.isFinite(Number(it.sortOrder))
+                  ? Number(it.sortOrder) + 1
+                  : undefined;
 
                 return (
                   <CustomMarker
-                    key={`view-${viewPlan.id}-${it.id}`}
+                    key={`view-${viewPlan.id}-${it.id}-${orderForDisplay}`}
                     position={{ lat, lng }}
                     isFavorite={false}
                     isSelected={!!isSelected}
-                    inPlan={true}
+                    inPlan
                     sortOrder={orderForDisplay}
                     forceNumberPin
                     onClick={() => {
@@ -544,7 +598,7 @@ function MapPreview({
             <CustomMarker
               position={position}
               isFavorite={false}
-              isSelected={true}
+              isSelected
               inPlan={!!planMembership}
               onClick={() => {
                 if (planMembership) {
@@ -564,7 +618,6 @@ function MapPreview({
               const lat = Number(it.place.latitude);
               const lng = Number(it.place.longitude);
               if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
-
               const thisPlaceId = getPlaceId(it.place);
               const isSelected = selectedPid && selectedPid === thisPlaceId;
 
@@ -610,7 +663,7 @@ function MapPreview({
                     position={{ lat, lng }}
                     isFavorite={false}
                     isSelected={!!isSelected}
-                    inPlan={true}
+                    inPlan
                     onClick={() => {
                       setIsPopupOpen(false);
                       setIsSavedGlobally(false);
@@ -638,7 +691,7 @@ function MapPreview({
                 message="行きたい場所リストに追加しますか？"
                 confirmLabel={isSaving ? "保存中..." : "追加する"}
                 cancelLabel="キャンセル"
-                confirmDisabled={isSaving || !currentVideo?.id || !getPlaceId(selectedPlace)}
+                confirmDisabled={isSaving || !getPlaceId(selectedPlace)}
                 onConfirm={handleAddFavorite}
                 onCancel={() => setIsPopupOpen(false)}
               />
@@ -656,8 +709,8 @@ function MapPreview({
             onAdd={() => {
               if (isSaving) return;
               const pid = getPlaceId(selectedPlace);
-              if (!currentVideo?.id || !pid) {
-                alert("追加できません（動画または場所情報が不足しています）。");
+              if (!pid) {
+                alert("追加できません（場所情報が不足しています）。");
                 return;
               }
               handleAddFavorite();
@@ -711,6 +764,9 @@ function MapPreview({
             items={viewPlanItems}
             loading={viewPlanLoading}
             onClose={() => setShowPlanPanel(false)}
+            onItemsReordered={(nextItems) => {
+              setViewPlanItems(nextItems);
+            }}
             onSelect={(it) => {
               const lat = Number(it?.place?.latitude);
               const lng = Number(it?.place?.longitude);
@@ -720,10 +776,15 @@ function MapPreview({
               }
             }}
             planByPlaceId={planByPlaceId}
+            // ★ここが重要：プラン内カードでもお気に入りUIを有効化
+            wishlistByPlaceId={wishlistByPlaceId}
+            onAddWishlist={handleAddWishlistFromPlan}
+            onRemoveWishlist={handleRemoveWishlist}
             onRemoveFromPlan={async (itemId, placeId) => {
               try {
                 await removePlanItem({ planId: viewPlan.id, itemId });
-                setViewPlanItems((prev) => prev.filter((x) => x.id !== itemId));
+                setViewPlanItems((prev) => renumber(prev.filter((x) => x.id !== itemId)));
+
                 invalidatePlanMembership(placeId);
                 setPlanByPlaceId((prev) => {
                   const next = { ...prev };
