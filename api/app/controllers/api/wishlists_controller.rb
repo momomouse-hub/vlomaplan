@@ -51,36 +51,48 @@ class Api::WishlistsController < ApplicationController
   end
 
   def create
-    p = place_params
-    pid = p[:place_id]
-    raise ActionController::ParameterMissing, :place_id if pid.blank?
+    pl = params.require(:place).permit(:place_id, :placeId, :name, :address, :latitude, :longitude)
+    vv = params[:video_view].present? ? params.require(:video_view).permit(:youtube_video_id, :title, :thumbnail_url, :search_history_id) : nil
 
-    place = Place.find_or_initialize_by(place_id: pid)
-    if place.new_record?
-      place.name      = p[:name]
-      place.address   = p[:address]
-      place.latitude  = p[:latitude]
-      place.longitude = p[:longitude]
-      place.save!
+    place_id = pl[:place_id].presence || pl[:placeId].presence
+    return render json: { error: "place_id is required" }, status: :bad_request if place_id.blank?
+
+    ApplicationRecord.transaction do
+      place = Place.find_or_create_by!(place_id: place_id) do |p|
+        p.name      = pl[:name]
+        p.address   = pl[:address]
+        p.latitude  = pl[:latitude]
+        p.longitude = pl[:longitude]
+      end
+
+      if vv.present?
+        video_view = VideoView.find_or_create_by!(youtube_video_id: vv[:youtube_video_id]) do |v|
+          v.title             = vv[:title]
+          v.thumbnail_url     = vv[:thumbnail_url]
+          v.search_history_id = vv[:search_history_id]
+        end
+        VideoViewPlace.find_or_create_by!(video_view: video_view, place: place)
+      end
+
+      wishlist = Wishlist.find_or_create_by!(user: current_user, place: place)
+
+      render json: {
+        id: wishlist.id,
+        saved: true,
+        place: {
+          id: place.id,
+          place_id: place.place_id,
+          name: place.name,
+          address: place.address,
+          latitude: place.latitude,
+          longitude: place.longitude
+        }
+      }, status: :created
     end
-
-    wishlist = Wishlist.find_or_create_by!(user: current_user, place: place)
-
-    latest_vvp = place.video_view_places.includes(:video_view).order(created_at: :desc).first
-    thumb      = latest_vvp&.video_view&.thumbnail_url
-
-    render json: {
-      id: wishlist.id,
-      place: {
-        id: place.id,
-        place_id: place.place_id,
-        name: place.name,
-        address: place.address,
-        latitude: place.latitude,
-        longitude: place.longitude
-      },
-      thumbnail_url: thumb
-    }, status: :created
+  rescue ActionController::ParameterMissing => e
+    render json: { error: e.message }, status: :bad_request
+  rescue ActiveRecord::RecordInvalid, ActiveRecord::RecordNotUnique => e
+    render json: { error: e.message }, status: :unprocessable_entity
   end
 
   def destroy
