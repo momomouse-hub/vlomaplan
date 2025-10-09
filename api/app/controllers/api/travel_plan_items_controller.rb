@@ -30,7 +30,15 @@ class Api::TravelPlanItemsController < ApplicationController
   def destroy
     it = @plan.travel_plan_items.find_by(id: params[:id])
     return head :not_found unless it
-    it.destroy!
+
+    TravelPlanItem.transaction do
+      @plan.lock!
+      removed_order = it.sort_order
+      it.destroy!
+      @plan.travel_plan_items.where("sort_order > ?", removed_order).update_all("sort_order = sort_order - 1")
+      @plan.touch
+    end
+
     head :no_content
   end
 

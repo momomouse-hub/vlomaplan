@@ -15,14 +15,37 @@ function CustomMarker({
   const markerRef = useRef(null);
 
   useEffect(() => {
-    if (!map || !markerLib) return () => {};
+    if (!map || !markerLib || !position) return;
 
-    const { PinElement, AdvancedMarkerElement } = markerLib;
+    const { AdvancedMarkerElement } = markerLib;
+
+    const marker = new AdvancedMarkerElement({
+      position,
+      map,
+      zIndex: isSelected ? 999 : 0,
+    });
+
+    if (onClick && marker.addListener) {
+      marker.addListener("click", onClick);
+    }
+
+    markerRef.current = marker;
+
+    return () => {
+      if (markerRef.current) {
+        markerRef.current.map = null;
+        markerRef.current = null;
+      }
+    };
+  }, [map, markerLib]);
+
+  useEffect(() => {
+    if (!markerRef.current || !markerLib) return;
+    const { PinElement } = markerLib;
 
     const SIZE = 42;
     const HALO_PAD = 8;
     const BADGE_SIZE = 20;
-    const BADGE_INNER = 16;
 
     const container = document.createElement("div");
     container.style.position = "relative";
@@ -45,7 +68,7 @@ function CustomMarker({
 
     let baseEl;
 
-    if (forceNumberPin && typeof sortOrder === "number") {
+    if (forceNumberPin && Number.isFinite(Number(sortOrder))) {
       const pin = new PinElement({
         scale: 1.6,
         glyph: String(sortOrder),
@@ -62,7 +85,6 @@ function CustomMarker({
       wrap.style.zIndex = "1";
       wrap.appendChild(pin.element);
       baseEl = wrap;
-
     } else if (isFavorite) {
       const img = document.createElement("img");
       img.src = isSelected ? "/selectedfilledheart.svg" : "/filledheart.svg";
@@ -73,7 +95,6 @@ function CustomMarker({
       img.style.position = "relative";
       img.style.zIndex = "1";
       baseEl = img;
-
     } else if (inPlan) {
       const wrap = document.createElement("div");
       wrap.style.width = `${SIZE}px`;
@@ -91,7 +112,6 @@ function CustomMarker({
       wrap.appendChild(bag);
 
       baseEl = wrap;
-
     } else {
       const pin = new PinElement({
         scale: 1.4,
@@ -113,7 +133,7 @@ function CustomMarker({
 
     container.appendChild(baseEl);
 
-    if (!(forceNumberPin && typeof sortOrder === "number")) {
+    if (!(forceNumberPin && Number.isFinite(Number(sortOrder)))) {
       if (inPlan && isFavorite) {
         const badge = document.createElement("div");
         badge.style.position = "absolute";
@@ -139,20 +159,23 @@ function CustomMarker({
       }
     }
 
-    const marker = new AdvancedMarkerElement({
-      position,
-      map,
-      content: container,
-      zIndex: isSelected ? 999 : 0,
-    });
+    markerRef.current.content = container;
+    markerRef.current.zIndex = isSelected ? 999 : 0;
 
-    if (onClick) marker.addListener("click", onClick);
-    markerRef.current = marker;
+    if (position) {
+      markerRef.current.position = position;
+    }
 
-    return () => {
-      if (markerRef.current) markerRef.current.map = null;
-    };
-  }, [map, markerLib, position, isFavorite, isSelected, inPlan, sortOrder, forceNumberPin, onClick]);
+    const root = markerRef.current.element;
+    if (root) {
+      while (root.firstChild) root.removeChild(root.firstChild);
+      root.appendChild(container);
+    }
+  }, [markerLib, isFavorite, isSelected, inPlan, sortOrder, forceNumberPin, position]);
+
+  useEffect(() => {
+    if (!markerRef.current) return;
+  }, [onClick]);
 
   return null;
 }
