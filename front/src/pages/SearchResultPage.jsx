@@ -33,7 +33,7 @@ function SearchResultPage() {
 
   return (
     <div>
-      <h2>検索結果：{query}</h2>
+      <h3 style={{textAlign: "center"}}>{query}</h3>
       <div>
         {videos.map((video) => (
           <VideoItem

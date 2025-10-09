@@ -21,6 +21,7 @@ import {
   listPlanItems,
   plansContainingPlace,
   removePlanItem,
+  deleteTravelPlan,
 } from "../api/travel_plans";
 import { getPlaceId } from "../utils/place";
 import {
@@ -207,6 +208,45 @@ function MapPreview({
     setShowWishlist(false);
     setShowPlanPicker(true);
   }, [onRequestExpand, onUnmask]);
+
+  const handleDeletePlan = useCallback(async (plan) => {
+    try {
+      await deleteTravelPlan({ planId: plan.id });
+
+      setShowPlanPanel(false);
+      setViewPlan(null);
+      setViewPlanItems([]);
+
+      setPlanPins((prev) => prev.filter((it) => it.planId !== plan.id));
+
+      setPlanByPlaceId((prev) => {
+        const next = { ...prev };
+        for (const [pid, mem] of Object.entries(next)) {
+          if (mem?.planId === plan.id) delete next[pid];
+        }
+        return next;
+      });
+
+      const selPid = getPlaceId(selectedPlace);
+      if (selPid) {
+        const mem = planByPlaceId[selPid];
+        if (mem?.planId === plan.id) {
+          invalidatePlanMembership(selPid);
+          setPlanMembership(null);
+        }
+      }
+
+      try {
+        const res = await listTravelPlans({ page: 1, per: 1 });
+        setHasAnyPlans((res.items || []).length > 0);
+      } catch { }
+
+      refreshPlanPins();
+    } catch (e) {
+      console.error(e);
+      alert("プランの削除に失敗しました。通信状況をご確認ください。");
+    }
+  }, [selectedPlace, planByPlaceId, refreshPlanPins]);
 
   const loadViewPlanItems = useCallback(async (plan) => {
     setViewPlan(plan);
@@ -776,7 +816,6 @@ function MapPreview({
               }
             }}
             planByPlaceId={planByPlaceId}
-            // ★ここが重要：プラン内カードでもお気に入りUIを有効化
             wishlistByPlaceId={wishlistByPlaceId}
             onAddWishlist={handleAddWishlistFromPlan}
             onRemoveWishlist={handleRemoveWishlist}
@@ -801,6 +840,7 @@ function MapPreview({
                 alert("旅行プランからの削除に失敗しました。");
               }
             }}
+            onDeletePlan={handleDeletePlan}
           />
         </div>
       )}
