@@ -1,3 +1,4 @@
+// src/components/MapPreview.jsx
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { useMap, Map } from "@vis.gl/react-google-maps";
 import CustomMarker from "./CustomMarker";
@@ -8,7 +9,6 @@ import TravelPlanModal from "./TravelPlanModal";
 import PlanPickerModal from "./PlanPickerModal";
 import PlanPanel from "./PlanPanel";
 import WishlistPanel from "./WishlistPanel";
-import { createBookmark } from "../api/bookmarks";
 import {
   totalCountWishlists,
   wishlistsStatus,
@@ -239,7 +239,7 @@ function MapPreview({
       try {
         const res = await listTravelPlans({ page: 1, per: 1 });
         setHasAnyPlans((res.items || []).length > 0);
-      } catch { }
+      } catch {}
 
       refreshPlanPins();
     } catch (e) {
@@ -460,19 +460,17 @@ function MapPreview({
         longitude: selectedPlace.longitude,
       };
 
-      if (currentVideo?.id) {
-        await createBookmark({
-          video_view: {
-            youtube_video_id: currentVideo.id,
-            title: currentVideo.title,
-            thumbnailUrl: currentVideo.thumbnail,
-            search_history_id: null,
-          },
-          place: placePayload,
-        });
-      } else {
-        await createWishlist({ place: placePayload });
-      }
+      await createWishlist({
+        place: placePayload,
+        videoView: currentVideo?.id
+          ? {
+              youtube_video_id: currentVideo.id,
+              title: currentVideo.title,
+              thumbnail_url: currentVideo.thumbnail,
+              search_history_id: null,
+            }
+          : undefined,
+      });
 
       setIsSavedGlobally(true);
       try {
@@ -526,9 +524,10 @@ function MapPreview({
       } catch (e) {
         console.error(e);
         alert("行きたい場所リストへの追加に失敗しました。");
-      } finally {
-        refreshSavedPins();
+        throw e;
       }
+      await refreshSavedPins();
+      return true;
     },
     [refreshSavedPins]
   );

@@ -36,6 +36,8 @@ export default function PlanPanel({
   const isDocked = variant === "docked";
   const [isSorting, setIsSorting] = useState(false);
   const [ordered, setOrdered] = useState(items || []);
+  const [savingItemIds, setSavingItemIds] = useState(new Set());
+
   useEffect(() => {
     if (!isSorting) setOrdered(items || []);
   }, [items, isSorting]);
@@ -69,6 +71,21 @@ export default function PlanPanel({
         height: "50vh",
         overflow: "hidden",
       };
+
+  const withSaving = (itemId, fn) => async () => {
+    if (!fn) return;
+    if (savingItemIds.has(itemId)) return;
+    setSavingItemIds((prev) => new Set(prev).add(itemId));
+    try {
+      await fn();
+    } finally {
+      setSavingItemIds((prev) => {
+        const next = new Set(prev);
+        next.delete(itemId);
+        return next;
+      });
+    }
+  };
 
   function SortableRow({ id, index, children }) {
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
@@ -205,7 +222,6 @@ export default function PlanPanel({
         </button>
       </div>
 
-      {/* 本文（スクロール領域） */}
       <div
         style={{
           flex: 1,
@@ -228,6 +244,8 @@ export default function PlanPanel({
                 const mem =
                   planByPlaceId?.[pid] || { planId: plan.id, planName: plan.name, itemId: it.id };
                 const wishlistId = wishlistByPlaceId?.[pid];
+                const isSaving = savingItemIds.has(it.id);
+
                 return (
                   <SortableRow key={it.id} id={it.id} index={idx}>
                     <PlaceDetailCard
@@ -235,8 +253,14 @@ export default function PlanPanel({
                       place={it.place}
                       thumbnailUrl={it.thumbnailUrl}
                       isSaved={!!wishlistId}
-                      isSaving={false}
-                      onAdd={wishlistId ? undefined : () => onAddWishlist?.(it.place)}
+                      isSaving={isSaving}
+                      onAdd={
+                        wishlistId
+                          ? undefined
+                          : withSaving(it.id, async () => {
+                              await onAddWishlist?.(it.place);
+                            })
+                      }
                       onRemove={wishlistId ? () => onRemoveWishlist?.(wishlistId) : undefined}
                       onAddToPlan={undefined}
                       planMembership={mem}
@@ -254,6 +278,8 @@ export default function PlanPanel({
             const mem =
               planByPlaceId?.[pid] || { planId: plan.id, planName: plan.name, itemId: it.id };
             const wishlistId = wishlistByPlaceId?.[pid];
+            const isSaving = savingItemIds.has(it.id);
+
             return (
               <div
                 key={it.id}
@@ -288,8 +314,14 @@ export default function PlanPanel({
                   place={it.place}
                   thumbnailUrl={it.thumbnailUrl}
                   isSaved={!!wishlistId}
-                  isSaving={false}
-                  onAdd={wishlistId ? undefined : () => onAddWishlist?.(it.place)}
+                  isSaving={isSaving}
+                  onAdd={
+                    wishlistId
+                      ? undefined
+                      : withSaving(it.id, async () => {
+                          await onAddWishlist?.(it.place);
+                        })
+                  }
                   onRemove={wishlistId ? () => onRemoveWishlist?.(wishlistId) : undefined}
                   onAddToPlan={undefined}
                   planMembership={mem}

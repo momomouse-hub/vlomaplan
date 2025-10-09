@@ -25,9 +25,7 @@ export async function deleteWishlist(id) {
   return null;
 }
 
-export async function createWishlist({ place }) {
-  return apiFetchJson(`${base}/api/wishlists`, {
-    method: "POST",
-    body: { place },
-  });
+export async function createWishlist({ place, videoView }) {
+  const body = videoView ? { place, video_view: videoView } : { place };
+  return apiFetchJson(`${base}/api/wishlists`, { method: "POST", body });
 }

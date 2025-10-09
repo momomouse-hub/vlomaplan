@@ -13,6 +13,7 @@ function CustomMarker({
   const map = useMap();
   const markerLib = useMapsLibrary("marker");
   const markerRef = useRef(null);
+  const clickListenerRef = useRef(null);
 
   useEffect(() => {
     if (!map || !markerLib || !position) return;
@@ -23,21 +24,27 @@ function CustomMarker({
       position,
       map,
       zIndex: isSelected ? 999 : 0,
+      gmpClickable: true,
     });
 
     if (onClick && marker.addListener) {
-      marker.addListener("click", onClick);
+      clickListenerRef.current = marker.addListener("click", onClick);
     }
 
     markerRef.current = marker;
 
     return () => {
+      if (clickListenerRef.current?.remove) {
+        clickListenerRef.current.remove();
+      }
+      clickListenerRef.current = null;
+
       if (markerRef.current) {
         markerRef.current.map = null;
         markerRef.current = null;
       }
     };
-  }, [map, markerLib]);
+  }, [map, markerLib, position, isSelected]);
 
   useEffect(() => {
     if (!markerRef.current || !markerLib) return;
@@ -52,6 +59,7 @@ function CustomMarker({
     container.style.width = `${SIZE}px`;
     container.style.height = `${SIZE}px`;
     container.style.transform = isSelected ? "scale(1.06)" : "none";
+    container.style.pointerEvents = "auto";
 
     const halo = document.createElement("div");
     halo.style.position = "absolute";
@@ -64,6 +72,7 @@ function CustomMarker({
     halo.style.borderRadius = "50%";
     halo.style.boxShadow = "0 2px 6px rgba(0,0,0,.25)";
     halo.style.zIndex = "0";
+    halo.style.pointerEvents = "none";
     container.appendChild(halo);
 
     let baseEl;
@@ -147,6 +156,7 @@ function CustomMarker({
         badge.style.display = "grid";
         badge.style.placeItems = "center";
         badge.style.zIndex = "2";
+        badge.style.pointerEvents = "none";
 
         const bag = document.createElement("img");
         bag.src = "/badge-bag.svg";
@@ -174,7 +184,13 @@ function CustomMarker({
   }, [markerLib, isFavorite, isSelected, inPlan, sortOrder, forceNumberPin, position]);
 
   useEffect(() => {
-    if (!markerRef.current) return;
+    if (!markerRef.current || !markerRef.current.addListener) return;
+    if (clickListenerRef.current?.remove) {
+      clickListenerRef.current.remove();
+    }
+    clickListenerRef.current = onClick
+      ? markerRef.current.addListener("click", onClick)
+      : null;
   }, [onClick]);
 
   return null;
