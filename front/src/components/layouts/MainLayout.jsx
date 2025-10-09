@@ -4,11 +4,20 @@ import Header from "../Header";
 
 function MainLayout() {
   return (
-      <>
-        <Header />
+    <div
+      style={{
+        minHeight: "100dvh",
+        display: "grid",
+        gridTemplateRows: "auto 1fr",
+        minWidth: 0,
+      }}
+    >
+      <Header />
+      <div style={{ minHeight: 0 }}>
         <ScrollToTop />
         <Outlet />
-      </>
+      </div>
+    </div>
   );
 }
 

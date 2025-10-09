@@ -15,7 +15,6 @@ export default function TravelPlanModal({ place, onClose, onAdded }) {
   const [containsMap, setContainsMap] = useState({});
   const [selectedPlanId, setSelectedPlanId] = useState(null);
 
-  const [query, setQuery] = useState("");
   const [creating, setCreating] = useState(false);
   const [newPlanName, setNewPlanName] = useState("");
   const newNameRef = useRef(null);
@@ -63,12 +62,6 @@ export default function TravelPlanModal({ place, onClose, onAdded }) {
     })();
     return () => { mounted = false; };
   }, [placeId]);
-
-  const filteredPlans = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return plans;
-    return plans.filter(p => (p.name || "").toLowerCase().includes(q));
-  }, [plans, query]);
 
   const selectedPlanName = useMemo(() => {
     if (selectedPlanId === NEW_VALUE) return newPlanName.trim();
@@ -189,18 +182,8 @@ export default function TravelPlanModal({ place, onClose, onAdded }) {
           追加対象：<b>{place?.name ?? "-"}</b>
         </div>
 
-        <div style={{ marginTop: 12, display: "flex", gap: 8 }}>
-          <input
-            type="text"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="プラン名で検索"
-            aria-label="プラン検索"
-            style={{ flex: 1, border: "1px solid #ddd", borderRadius: 8, padding: "8px 10px" }}
-          />
-        </div>
-
-        <div style={{ marginTop: 10 }}>
+        {/* 検索欄は撤去してシンプルにセレクトのみ */}
+        <div style={{ marginTop: 12 }}>
           {loading ? (
             <div style={{ padding: 12, color: "#666" }}>読み込み中…</div>
           ) : (
@@ -211,7 +194,7 @@ export default function TravelPlanModal({ place, onClose, onAdded }) {
               aria-label="旅行プランの選択"
             >
               <option value={NEW_VALUE}>＋ 新しいプランを作成…</option>
-              {filteredPlans.map((p) => {
+              {plans.map((p) => {
                 const hit = containsMap[p.id];
                 const already = !!hit?.hasPlace;
                 const suffix = already ? "（この場所は追加済み）" : "";
@@ -245,7 +228,7 @@ export default function TravelPlanModal({ place, onClose, onAdded }) {
                 padding: "8px 12px", cursor: creating ? "default" : "pointer", opacity: creating ? 0.6 : 1
               }}
             >
-              {creating ? "作成中…" : "作成のみ"}
+              {creating ? "作成中…" : "作成"}
             </button>
           </div>
         )}

@@ -1,4 +1,6 @@
-function MapSearchBar({ onFocus }) {
+function MapSearchBar({ onPress, onFocus }) {
+  const trigger = onPress || onFocus;
+
   return (
     <div
       style={{
@@ -13,8 +15,12 @@ function MapSearchBar({ onFocus }) {
     >
       <input
         type="text"
-        onFocus={onFocus}
         placeholder="行きたい場所をお気に入りに追加"
+        readOnly
+        onMouseDown={(e) => { e.preventDefault(); trigger?.(); }}
+        onTouchStart={(e) => { e.preventDefault(); trigger?.(); }}
+        onClick={(e) => { e.preventDefault(); trigger?.(); }}
+        onFocus={(e) => { e.target.blur(); trigger?.(); }}
         style={{
           height: "100%",
           width: "100%",
@@ -25,7 +31,6 @@ function MapSearchBar({ onFocus }) {
           border: "1px solid #ccc",
           borderRadius: 8,
         }}
-        readOnly
       />
     </div>
   );

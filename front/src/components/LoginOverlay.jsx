@@ -134,26 +134,6 @@ export default function LoginOverlay({ onClose, onSwitchToRegister }) {
             style={inputStyle}
           />
 
-          <button
-            type="button"
-            onClick={() => {
-              onClose();
-              navigate("/password/forgot");
-            }}
-            style={{
-              border: "none",
-              background: "transparent",
-              color: "#47625a",
-              fontSize: 14,
-              marginTop: 2,
-              marginBottom: 2,
-              textDecoration: "none",
-              cursor: "pointer",
-            }}
-          >
-            パスワードを忘れた場合
-          </button>
-
           <button type="submit" disabled={submitting} style={primaryBtn}>
             {submitting ? "ログイン中…" : "ログイン"}
           </button>

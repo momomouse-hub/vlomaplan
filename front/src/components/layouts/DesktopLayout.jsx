@@ -34,13 +34,22 @@ function DesktopLayout({ id, relatedVideos, channels, currentVideo }) {
         minHeight: 0,
       }}
     >
-      <section style={{ minWidth: 0, minHeight: 0, display: "flex", flexDirection: "column" }}>
+      <section
+        style={{
+          minWidth: 0,
+          minHeight: 0,
+          display: "flex",
+          flexDirection: "column",
+          overflow: "hidden",
+        }}
+      >
         <div style={{ width: "100%", aspectRatio: "16/9" }}>
           <VideoPlayerWrapper videoId={id} />
         </div>
 
         <h3 style={{ marginTop: "1rem" }}>関連動画</h3>
-        <div style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
+
+        <div style={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
           {relatedVideos.map((video) => (
             <VideoItem
               key={video.id}
@@ -62,9 +71,7 @@ function DesktopLayout({ id, relatedVideos, channels, currentVideo }) {
           }}
         >
           <div>
-            <PlaceAutocomplete
-              onPlaceSelect={handleSelectPlace}
-            />
+            <PlaceAutocomplete onPlaceSelect={handleSelectPlace} />
           </div>
 
           <div style={{ position: "relative", minHeight: 0 }}>
@@ -77,6 +84,7 @@ function DesktopLayout({ id, relatedVideos, channels, currentVideo }) {
                 onSelectPlace={handleSelectPlace}
                 onWishlistTotalChange={setWishlistTotal}
               />
+
               <div
                 aria-hidden
                 style={{

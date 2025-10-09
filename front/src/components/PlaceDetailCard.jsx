@@ -1,4 +1,3 @@
-// src/components/PlaceDetailCard.jsx
 export default function PlaceDetailCard({
   place,
   thumbnailUrl,
@@ -138,7 +137,6 @@ export default function PlaceDetailCard({
           <span style={{ marginLeft: "auto" }}>▾</span>
         </div>
 
-        {/* お気に入り（行きたい）操作行 */}
         <div
           style={{
             marginTop: 10,
@@ -173,12 +171,11 @@ export default function PlaceDetailCard({
               disabled={isSaving || !onAdd}
               style={linkBtnStyle(!(isSaving || !onAdd))}
             >
-              {isSaving ? "保存中..." : "いきたい場所リストに追加"}
+              {isSaving ? "保存中..." : "行きたい場所リストに追加"}
             </button>
           )}
         </div>
 
-        {/* 旅行プラン操作行 */}
         <div
           style={{
             marginTop: 10,
