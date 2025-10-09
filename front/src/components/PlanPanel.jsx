@@ -31,6 +31,7 @@ export default function PlanPanel({
   onRemoveWishlist,
   variant = "overlay",
   onItemsReordered,
+  onDeletePlan,
 }) {
   const isDocked = variant === "docked";
   const [isSorting, setIsSorting] = useState(false);
@@ -70,7 +71,8 @@ export default function PlanPanel({
       };
 
   function SortableRow({ id, index, children }) {
-    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+    const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+      useSortable({ id });
     const style = {
       transform: CSS.Transform.toString(transform),
       transition,
@@ -85,7 +87,11 @@ export default function PlanPanel({
       padding: 2,
     };
     return (
-      <div ref={setNodeRef} style={style} {...(isSorting ? { ...attributes, ...listeners } : {})}>
+      <div
+        ref={setNodeRef}
+        style={style}
+        {...(isSorting ? { ...attributes, ...listeners } : {})}
+      >
         <div
           aria-hidden
           style={{
@@ -159,9 +165,7 @@ export default function PlanPanel({
           borderBottom: "1px solid #eee",
         }}
       >
-        <div style={{ fontWeight: 700, fontSize: 16 }}>
-          {plan?.name ?? "旅行プラン"}
-        </div>
+        <div style={{ fontWeight: 700, fontSize: 16 }}>{plan?.name ?? "旅行プラン"}</div>
         <div style={{ marginLeft: "auto", fontSize: 12, color: "#666" }}>
           {loading ? "読込中…" : `${ordered.length}件`}
         </div>
@@ -201,20 +205,28 @@ export default function PlanPanel({
         </button>
       </div>
 
-      <div style={{ flex: 1, overflowY: "auto", padding: 12, gap: 10, display: "grid" }}>
-        {(ordered.length === 0) && !loading && (
+      {/* 本文（スクロール領域） */}
+      <div
+        style={{
+          flex: 1,
+          overflowY: "auto",
+          padding: 12,
+          gap: 10,
+          display: "grid",
+          alignContent: "start",
+        }}
+      >
+        {ordered.length === 0 && !loading && (
           <div style={{ color: "#666" }}>このプランにはまだ場所がありません</div>
         )}
 
         {isSorting ? (
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
-            <SortableContext
-              items={ordered.map((x) => x.id)}
-              strategy={verticalListSortingStrategy}
-            >
+            <SortableContext items={ordered.map((x) => x.id)} strategy={verticalListSortingStrategy}>
               {ordered.map((it, idx) => {
                 const pid = getPlaceId(it.place);
-                const mem = planByPlaceId?.[pid] || { planId: plan.id, planName: plan.name, itemId: it.id };
+                const mem =
+                  planByPlaceId?.[pid] || { planId: plan.id, planName: plan.name, itemId: it.id };
                 const wishlistId = wishlistByPlaceId?.[pid];
                 return (
                   <SortableRow key={it.id} id={it.id} index={idx}>
@@ -239,15 +251,19 @@ export default function PlanPanel({
         ) : (
           ordered.map((it, idx) => {
             const pid = getPlaceId(it.place);
-            const mem = planByPlaceId?.[pid] || { planId: plan.id, planName: plan.name, itemId: it.id };
+            const mem =
+              planByPlaceId?.[pid] || { planId: plan.id, planName: plan.name, itemId: it.id };
             const wishlistId = wishlistByPlaceId?.[pid];
             return (
-              <div key={it.id} style={{
-                display: "grid",
-                gridTemplateColumns: "28px 1fr",
-                alignItems: "start",
-                gap: 8,
-              }}>
+              <div
+                key={it.id}
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "28px 1fr",
+                  alignItems: "start",
+                  gap: 8,
+                }}
+              >
                 <div
                   aria-hidden
                   style={{
@@ -283,6 +299,35 @@ export default function PlanPanel({
               </div>
             );
           })
+        )}
+
+        {!!plan?.id && (
+          <>
+            <hr style={{ border: 0, borderTop: "1px solid #eee", margin: "6px 0 12px" }} />
+            <div style={{ display: "flex", justifyContent: "center" }}>
+              <button
+                type="button"
+                onClick={() => {
+                  const ok = window.confirm(
+                    `「${plan.name}」を削除します。よろしいですか？（元に戻せません）`
+                  );
+                  if (!ok) return;
+                  onDeletePlan?.(plan);
+                }}
+                style={{
+                  padding: "10px 14px",
+                  borderRadius: 10,
+                  border: "1px solid #c62828",
+                  background: "#fff",
+                  color: "#c62828",
+                  fontWeight: 700,
+                  cursor: "pointer",
+                }}
+              >
+                このプランを削除する
+              </button>
+            </div>
+          </>
         )}
       </div>
     </div>

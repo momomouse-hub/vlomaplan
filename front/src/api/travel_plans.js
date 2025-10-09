@@ -46,3 +46,13 @@ export async function reorderPlanItems({ planId, items }) {
     body: { items },
   });
 }
+
+export async function deleteTravelPlan({ planId }) {
+  const res = await apiFetch(`${base}/api/travel_plans/${planId}`, {
+    method: "DELETE",
+  });
+  if (!res.ok && res.status !== 204) {
+    throw new Error(`deleteTravelPlan failed: ${res.status}`);
+  }
+  return null;
+}
