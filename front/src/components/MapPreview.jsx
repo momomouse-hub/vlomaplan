@@ -5,6 +5,9 @@ import IconPillButton from "./IconPillButton";
 import MapPopup from "./MapPopup";
 import PlaceDetailCard from "./PlaceDetailCard";
 import TravelPlanModal from "./TravelPlanModal";
+import PlanPickerModal from "./PlanPickerModal";
+import PlanPanel from "./PlanPanel";
+import WishlistPanel from "./WishlistPanel";
 import { createBookmark } from "../api/bookmarks";
 import {
   totalCountWishlists,
@@ -24,124 +27,6 @@ import {
   primePlanMembership,
   invalidatePlanMembership,
 } from "../state/planMembershipCache";
-
-function WishlistPanel({
-  heightPx = 280,
-  bottomOffset = "clamp(24px, 6vh, 64px)",
-  items,
-  loading,
-  hasNext,
-  onLoadMore,
-  onClose,
-  onSelect,
-  onRemove,
-  onAddToPlan,
-  totalCount,
-  planByPlaceId,
-  onRemoveFromPlan,
-}) {
-  const sentinelRef = useRef(null);
-
-  useEffect(() => {
-    if (!hasNext || loading) return () => {};
-    const el = sentinelRef.current;
-    if (!el) return () => {};
-    const io = new IntersectionObserver((entries) => {
-      entries.forEach((e) => {
-        if (e.isIntersecting) onLoadMore();
-      });
-    });
-    io.observe(el);
-    return () => io.disconnect();
-  }, [hasNext, loading, onLoadMore]);
-
-  return (
-    <div
-      role="button"
-      tabIndex={0}
-      onClick={(e) => e.stopPropagation()}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") e.stopPropagation();
-      }}
-      style={{
-        position: "absolute",
-        left: "2.5%",
-        right: "2.5%",
-        bottom: `calc(env(safe-area-inset-bottom, 0px) + ${bottomOffset})`,
-        background: "#fff",
-        borderRadius: 16,
-        boxShadow: "0 10px 24px rgba(0,0,0,.2)",
-        zIndex: 3000,
-        display: "flex",
-        flexDirection: "column",
-        height: heightPx ? heightPx : "50vh",
-        overflow: "hidden",
-      }}
-    >
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-          padding: 12,
-          borderBottom: "1px solid #eee",
-        }}
-      >
-        <div style={{ fontWeight: 700, fontSize: 16 }}>行きたい場所リスト</div>
-        <div style={{ marginLeft: "auto", fontSize: 12, color: "#666" }}>
-          {(Number.isFinite(totalCount) ? totalCount : items.length)}件
-          {loading ? "(読込中)" : ""}
-        </div>
-        <button
-          type="button"
-          aria-label="close"
-          onClick={onClose}
-          style={{
-            marginLeft: 8,
-            background: "#f2f2f2",
-            border: "none",
-            width: 28,
-            height: 28,
-            borderRadius: 14,
-            cursor: "pointer",
-            fontWeight: 700,
-          }}
-        >
-          ×
-        </button>
-      </div>
-
-      <div style={{ flex: 1, overflowY: "auto", padding: 12, gap: 10, display: "grid" }}>
-        {items.length === 0 && !loading && <div style={{ color: "#666" }}>まだ保存がありません</div>}
-
-        {items.map((it) => {
-          const pid = getPlaceId(it.place);
-          return (
-            <PlaceDetailCard
-              key={it.id}
-              variant="inline"
-              place={it.place}
-              thumbnailUrl={it.thumbnailUrl}
-              isSaved
-              isSaving={false}
-              onRemove={() => onRemove?.(it.id)}
-              onAddToPlan={() => onAddToPlan?.(it)}
-              planMembership={planByPlaceId?.[pid]}
-              onRemoveFromPlan={() => onRemoveFromPlan?.(pid)}
-              onRootClick={() => onSelect(it)}
-            />
-          );
-        })}
-
-        <div ref={sentinelRef} style={{ height: 1 }} />
-        {loading && <div style={{ padding: "8px 0", textAlign: "center", color: "#666" }}>読み込み中…</div>}
-        {!hasNext && items.length > 0 && (
-          <div style={{ padding: "6px 0", textAlign: "center", color: "#999", fontSize: 12 }}>以上です</div>
-        )}
-      </div>
-    </div>
-  );
-}
 
 function MapPreview({
   position,
@@ -170,8 +55,8 @@ function MapPreview({
   const [isSaving, setIsSaving] = useState(false);
   const [totalFavCount, setTotalFavCount] = useState(0);
 
-  const [isSaved] = useState(false);
   const hasAnyFavorites = totalFavCount > 0;
+  const [hasAnyPlans, setHasAnyPlans] = useState(false);
 
   const map = useMap();
   const prevH = useRef(mapHeight);
@@ -185,6 +70,13 @@ function MapPreview({
   const [modalPlace, setModalPlace] = useState(null);
   const [planByPlaceId, setPlanByPlaceId] = useState({});
   const [modalSource, setModalSource] = useState(null);
+
+  const [showPlanPicker, setShowPlanPicker] = useState(false);
+  const [showPlanPanel, setShowPlanPanel] = useState(false);
+  const [viewPlan, setViewPlan] = useState(null);
+  const [viewPlanItems, setViewPlanItems] = useState([]);
+  const [viewPlanLoading, setViewPlanLoading] = useState(false);
+  const isViewingPlan = !!(showPlanPanel && viewPlan && Array.isArray(viewPlanItems));
 
   const refreshSavedPins = useCallback(async () => {
     try {
@@ -213,7 +105,8 @@ function MapPreview({
   const refreshPlanPins = useCallback(async () => {
     try {
       const plansRes = await listTravelPlans({ page: 1, per: 200 });
-      const plans = plansRes.items || [];
+    const plans = plansRes.items || [];
+      setHasAnyPlans(plans.length > 0);
       if (plans.length === 0) {
         setPlanPins([]);
         return;
@@ -279,6 +172,7 @@ function MapPreview({
   const handleOpenWishlist = useCallback(async () => {
     onRequestExpand?.();
     onUnmask?.();
+    setShowPlanPanel(false);
     setShowWishlist(true);
     setIsPopupOpen(false);
     setShowDetail(false);
@@ -294,7 +188,43 @@ function MapPreview({
     } finally {
       setWlLoading(false);
     }
-  }, [loadWishlist, onRequestExpand]);
+  }, [onRequestExpand, onUnmask]);
+
+  const openPlanPicker = useCallback(() => {
+    onRequestExpand?.();
+    onUnmask?.();
+    setShowWishlist(false);
+    setShowPlanPicker(true);
+  }, [onRequestExpand, onUnmask]);
+
+  const loadViewPlanItems = useCallback(async (plan) => {
+    setViewPlan(plan);
+    setShowWishlist(false);
+    setShowPlanPanel(true);
+    setViewPlanLoading(true);
+    try {
+      const res = await listPlanItems({ planId: plan.id });
+      const items = res.items || [];
+      setViewPlanItems(items);
+
+      const nextMap = {};
+      items.forEach((it) => {
+        const pid = getPlaceId(it.place);
+        if (!pid) return;
+        const mem = { planId: plan.id, planName: plan.name, itemId: it.id };
+        primePlanMembership(pid, mem);
+        nextMap[pid] = mem;
+      });
+      setPlanByPlaceId((prev) => ({ ...prev, ...nextMap }));
+    } finally {
+      setViewPlanLoading(false);
+    }
+  }, []);
+
+  const handleChoosePlanToView = useCallback((plan) => {
+    setShowPlanPicker(false);
+    loadViewPlanItems(plan);
+  }, [loadViewPlanItems]);
 
   const handleCloseWishlist = useCallback(() => setShowWishlist(false), []);
 
@@ -374,8 +304,8 @@ function MapPreview({
     if (!wlItems?.length) return;
     const pids = wlItems.map((it) => getPlaceId(it.place)).filter(Boolean);
     (async () => {
-      const map = await ensureMembershipsForPlaceIds(pids);
-      setPlanByPlaceId((prev) => ({ ...prev, ...map }));
+      const mapNew = await ensureMembershipsForPlaceIds(pids);
+      setPlanByPlaceId((prev) => ({ ...prev, ...mapNew }));
     })();
   }, [wlItems]);
 
@@ -383,8 +313,8 @@ function MapPreview({
     if (!savedPins?.length) return;
     const pids = savedPins.map((it) => getPlaceId(it.place)).filter(Boolean);
     (async () => {
-      const map = await ensureMembershipsForPlaceIds(pids);
-      setPlanByPlaceId((prev) => ({ ...prev, ...map }));
+      const mapNew = await ensureMembershipsForPlaceIds(pids);
+      setPlanByPlaceId((prev) => ({ ...prev, ...mapNew }));
     })();
   }, [savedPins]);
 
@@ -512,207 +442,342 @@ function MapPreview({
   const savedPidSet = new Set(savedPins.map((it) => getPlaceId(it.place)).filter(Boolean));
   const selectedPid = getPlaceId(selectedPlace);
 
+  const isDockedOpen = isViewingPlan || showWishlist;
+
+  const mapRowSize = "minmax(180px, 34%)";
+
   return (
-    <div style={{ height: containerHeight, width: "100%", position: "relative" }}>
-      <div
-        style={{
-          position: "absolute",
-          top: 16,
-          right: 16,
-          display: "flex",
-          flexDirection: "column",
-          gap: 12,
-          zIndex: 1100,
-          alignItems: "flex-end",
-        }}
-      >
-        <IconPillButton
-          label="行きたい場所リストを表示"
-          iconSrc={hasAnyFavorites ? "/filledheart.svg" : "/heart.svg"}
-          iconAlt="いきたい場所リスト"
-          badgeCount={totalFavCount}
-          onAction={handleOpenWishlist}
-        />
-        <IconPillButton
-          label="旅行プランを表示"
-          iconSrc={"/filledluggage.svg"}
-          iconAlt="旅行プラン"
-          onAction={() => {
-            onUnmask?.();
-            alert("旅行プラン機能は準備中です");
+    <div
+      style={{
+        height: containerHeight,
+        width: "100%",
+        display: "grid",
+        gridTemplateRows: isDockedOpen ? `${mapRowSize} 1fr` : "1fr",
+        gap: 12,
+        position: "relative",
+        minHeight: 0,
+      }}
+    >
+      <div style={{ position: "relative", minHeight: 0 }}>
+        <div
+          style={{
+            position: "absolute",
+            top: 16,
+            right: 16,
+            display: "flex",
+            flexDirection: "column",
+            gap: 12,
+            zIndex: 1100,
+            alignItems: "flex-end",
           }}
-        />
+        >
+          <IconPillButton
+            label="行きたい場所リストを表示"
+            iconSrc={hasAnyFavorites ? "/filledheart.svg" : "/heart.svg"}
+            iconAlt="行きたい場所リスト"
+            badgeCount={totalFavCount}
+            onAction={handleOpenWishlist}
+          />
+          <IconPillButton
+            label="旅行プランを表示"
+            iconSrc={hasAnyPlans ? "/filledluggage.svg" : "/luggage.svg"}
+            iconAlt="旅行プラン"
+            onAction={openPlanPicker}
+          />
+        </div>
+
+        <Map
+          defaultCenter={position}
+          defaultZoom={14}
+          options={{ disableDefaultUI: true }}
+          mapId={import.meta.env.VITE_GOOGLE_MAP_ID}
+          style={{ height: "100%", width: "100%" }}
+          onClick={() => {
+            setIsPopupOpen(false);
+            setShowDetail(false);
+          }}
+        >
+          {isViewingPlan &&
+            viewPlanItems
+              .filter(
+                (it) =>
+                  Number.isFinite(Number(it?.place?.latitude)) &&
+                  Number.isFinite(Number(it?.place?.longitude))
+              )
+              .sort((a, b) => {
+                const ao = a.sortOrder ?? a.sort_order;
+                const bo = b.sortOrder ?? b.sort_order;
+                const sa = Number.isFinite(Number(ao)) ? Number(ao) : 0;
+                const sb = Number.isFinite(Number(bo)) ? Number(bo) : 0;
+                return sa - sb;
+              })
+              .map((it) => {
+                const lat = Number(it.place.latitude);
+                const lng = Number(it.place.longitude);
+                const pid = getPlaceId(it.place);
+                const isSelected = selectedPid && selectedPid === pid;
+                const rawOrder = it.sortOrder ?? it.sort_order;
+                const orderForDisplay = Number.isFinite(Number(rawOrder)) ? Number(rawOrder) + 1 : undefined;
+
+                return (
+                  <CustomMarker
+                    key={`view-${viewPlan.id}-${it.id}`}
+                    position={{ lat, lng }}
+                    isFavorite={false}
+                    isSelected={!!isSelected}
+                    inPlan={true}
+                    sortOrder={orderForDisplay}
+                    forceNumberPin
+                    onClick={() => {
+                      setIsPopupOpen(false);
+                      setIsSavedGlobally(false);
+                      onSelectPlace?.({ ...it.place, placeId: pid });
+                      setShowDetail(true);
+                      onRequestExpand?.();
+                      map?.panTo({ lat, lng });
+                    }}
+                  />
+                );
+              })}
+
+          {!isViewingPlan && !isSavedGlobally && selectedPlace && (
+            <CustomMarker
+              position={position}
+              isFavorite={false}
+              isSelected={true}
+              inPlan={!!planMembership}
+              onClick={() => {
+                if (planMembership) {
+                  setIsPopupOpen(false);
+                  setShowDetail(true);
+                  onRequestExpand?.();
+                } else {
+                  setIsPopupOpen(true);
+                  setShowDetail(false);
+                }
+              }}
+            />
+          )}
+
+          {!isViewingPlan &&
+            savedPins.map((it) => {
+              const lat = Number(it.place.latitude);
+              const lng = Number(it.place.longitude);
+              if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+
+              const thisPlaceId = getPlaceId(it.place);
+              const isSelected = selectedPid && selectedPid === thisPlaceId;
+
+              return (
+                <CustomMarker
+                  key={`wl-${it.id}`}
+                  position={{ lat, lng }}
+                  isFavorite
+                  isSelected={!!isSelected}
+                  inPlan={Boolean(planByPlaceId[thisPlaceId])}
+                  onClick={() => {
+                    setIsPopupOpen(false);
+                    setIsSavedGlobally(true);
+                    onSelectPlace?.({ ...it.place, placeId: thisPlaceId });
+                    setShowDetail(true);
+                    onRequestExpand?.();
+                    map?.panTo({ lat, lng });
+                  }}
+                />
+              );
+            })}
+
+          {!isViewingPlan &&
+            planPins
+              .filter((it) => {
+                const pid = getPlaceId(it.place);
+                if (!pid) return false;
+                if (savedPidSet.has(pid)) return false;
+                if (selectedPid && pid === selectedPid) return false;
+                return true;
+              })
+              .map((it) => {
+                const lat = Number(it.place.latitude);
+                const lng = Number(it.place.longitude);
+                if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+
+                const pid = getPlaceId(it.place);
+                const isSelected = selectedPid && selectedPid === pid;
+
+                return (
+                  <CustomMarker
+                    key={`plan-${it.planId}-${it.itemId}-${pid}`}
+                    position={{ lat, lng }}
+                    isFavorite={false}
+                    isSelected={!!isSelected}
+                    inPlan={true}
+                    onClick={() => {
+                      setIsPopupOpen(false);
+                      setIsSavedGlobally(false);
+                      onSelectPlace?.({ ...it.place, placeId: pid });
+                      setShowDetail(true);
+                      onRequestExpand?.();
+                      map?.panTo({ lat, lng });
+                    }}
+                  />
+                );
+              })}
+
+          {isPopupOpen && !isSavedGlobally && (
+            <div
+              style={{
+                position: "absolute",
+                top: "calc(50% - 150px)",
+                left: "50%",
+                transform: "translateX(-50%)",
+                zIndex: 1000,
+              }}
+            >
+              <MapPopup
+                title={placeName}
+                message="行きたい場所リストに追加しますか？"
+                confirmLabel={isSaving ? "保存中..." : "追加する"}
+                cancelLabel="キャンセル"
+                confirmDisabled={isSaving || !currentVideo?.id || !getPlaceId(selectedPlace)}
+                onConfirm={handleAddFavorite}
+                onCancel={() => setIsPopupOpen(false)}
+              />
+            </div>
+          )}
+        </Map>
+
+        {showDetail && (isSavedGlobally || !!planMembership) && (
+          <PlaceDetailCard
+            variant="overlay"
+            place={selectedPlace}
+            thumbnailUrl={placeThumbUrl ?? currentVideo?.thumbnail ?? null}
+            isSaved={isSavedGlobally}
+            isSaving={isSaving}
+            onAdd={() => {
+              if (isSaving) return;
+              const pid = getPlaceId(selectedPlace);
+              if (!currentVideo?.id || !pid) {
+                alert("追加できません（動画または場所情報が不足しています）。");
+                return;
+              }
+              handleAddFavorite();
+            }}
+            onRemove={() => {
+              if (currentWishlistId) {
+                handleRemoveWishlist(currentWishlistId);
+              } else {
+                alert("削除対象のIDが取得できませんでした。");
+              }
+            }}
+            onAddToPlan={() => {
+              onRequestExpand?.();
+              onUnmask?.();
+              setModalSource({ type: "detail", placeId: getPlaceId(selectedPlace) });
+              setModalPlace(selectedPlace);
+              setShowPlanModal(true);
+            }}
+            planMembership={planMembership}
+            onRemoveFromPlan={async () => {
+              if (!planMembership) return;
+              try {
+                await removePlanItem({ planId: planMembership.planId, itemId: planMembership.itemId });
+                const pid = getPlaceId(selectedPlace);
+                invalidatePlanMembership(pid);
+                setPlanMembership(null);
+                setPlanByPlaceId((prev) => {
+                  const next = { ...prev };
+                  delete next[pid];
+                  return next;
+                });
+                setPlanPins((prev) => prev.filter((it) => getPlaceId(it.place) !== pid));
+              } catch (e) {
+                console.error(e);
+                alert("旅行プランから削除に失敗しました。");
+              }
+            }}
+            onClose={() => setShowDetail(false)}
+            thumbWidth={120}
+            thumbHeight={100}
+            overlayOffset="clamp(24px, 5vh, 56px)"
+          />
+        )}
       </div>
 
-      <Map
-        defaultCenter={position}
-        defaultZoom={14}
-        options={{ disableDefaultUI: true }}
-        mapId={import.meta.env.VITE_GOOGLE_MAP_ID}
-        style={{ height: "100%", width: "100%" }}
-        onClick={() => {
-          setIsPopupOpen(false);
-          setShowDetail(false);
-        }}
-      >
-        {!isSavedGlobally && selectedPlace && (
-          <CustomMarker
-            position={position}
-            isFavorite={false}
-            isSelected={true}
-            inPlan={!!planMembership}
-            onClick={() => {
-              if (planMembership) {
-                setIsPopupOpen(false);
-                setShowDetail(true);
-                onRequestExpand?.();
-              } else {
-                setIsPopupOpen(true);
-                setShowDetail(false);
+      {isViewingPlan && viewPlan && (
+        <div style={{ minHeight: 0 }}>
+          <PlanPanel
+            variant="docked"
+            plan={viewPlan}
+            items={viewPlanItems}
+            loading={viewPlanLoading}
+            onClose={() => setShowPlanPanel(false)}
+            onSelect={(it) => {
+              const lat = Number(it?.place?.latitude);
+              const lng = Number(it?.place?.longitude);
+              if (Number.isFinite(lat) && Number.isFinite(lng)) {
+                onSelectPlace?.({ ...it.place, placeId: getPlaceId(it.place) });
+                map?.panTo({ lat, lng });
+              }
+            }}
+            planByPlaceId={planByPlaceId}
+            onRemoveFromPlan={async (itemId, placeId) => {
+              try {
+                await removePlanItem({ planId: viewPlan.id, itemId });
+                setViewPlanItems((prev) => prev.filter((x) => x.id !== itemId));
+                invalidatePlanMembership(placeId);
+                setPlanByPlaceId((prev) => {
+                  const next = { ...prev };
+                  delete next[placeId];
+                  return next;
+                });
+                setPlanPins((prev) => prev.filter((it) => getPlaceId(it.place) !== placeId));
+                if (getPlaceId(selectedPlace) === placeId) {
+                  setPlanMembership(null);
+                  setShowDetail(false);
+                }
+              } catch (e) {
+                console.error(e);
+                alert("旅行プランからの削除に失敗しました。");
               }
             }}
           />
-        )}
+        </div>
+      )}
 
-        {savedPins.map((it) => {
-          const lat = Number(it.place.latitude);
-          const lng = Number(it.place.longitude);
-          if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
-
-          const thisPlaceId = getPlaceId(it.place);
-          const isSelected = selectedPid && selectedPid === thisPlaceId;
-
-          return (
-            <CustomMarker
-              key={`wl-${it.id}`}
-              position={{ lat, lng }}
-              isFavorite
-              isSelected={!!isSelected}
-              inPlan={Boolean(planByPlaceId[thisPlaceId])}
-              onClick={() => {
-                setIsPopupOpen(false);
-                setIsSavedGlobally(true);
-                onSelectPlace?.({ ...it.place, placeId: thisPlaceId });
-                setShowDetail(true);
-                onRequestExpand?.();
-                map?.panTo({ lat, lng });
-              }}
-            />
-          );
-        })}
-
-        {planPins
-          .filter((it) => {
-            const pid = getPlaceId(it.place);
-            if (!pid) return false;
-            if (savedPidSet.has(pid)) return false;
-            if (selectedPid && pid === selectedPid) return false;
-            return true;
-          })
-          .map((it) => {
-            const lat = Number(it.place.latitude);
-            const lng = Number(it.place.longitude);
-            if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
-
-            const pid = getPlaceId(it.place);
-            const isSelected = selectedPid && selectedPid === pid;
-
-            return (
-              <CustomMarker
-                key={`plan-${it.planId}-${it.itemId}-${pid}`}
-                position={{ lat, lng }}
-                isFavorite={false}
-                isSelected={!!isSelected}
-                inPlan={true}
-                onClick={() => {
-                  setIsPopupOpen(false);
-                  setIsSavedGlobally(false);
-                  onSelectPlace?.({ ...it.place, placeId: pid });
-                  setShowDetail(true);
-                  onRequestExpand?.();
-                  map?.panTo({ lat, lng });
-                }}
-              />
-            );
-          })}
-
-        {isPopupOpen && !isSavedGlobally && (
-          <div
-            style={{
-              position: "absolute",
-              top: "calc(50% - 150px)",
-              left: "50%",
-              transform: "translateX(-50%)",
-              zIndex: 1000,
+      {!isViewingPlan && showWishlist && (
+        <div style={{ minHeight: 0 }}>
+          <WishlistPanel
+            variant="docked"
+            items={wlItems}
+            loading={wlLoading}
+            hasNext={wlNext != null}
+            onLoadMore={handleLoadMore}
+            onClose={handleCloseWishlist}
+            onSelect={handleSelectWishlistItem}
+            onRemove={handleRemoveWishlist}
+            onAddToPlan={handleAddToPlanFromWishlist}
+            totalCount={totalFavCount}
+            planByPlaceId={planByPlaceId}
+            onRemoveFromPlan={async (placeId) => {
+              const mem = planByPlaceId[placeId];
+              if (!mem) return;
+              try {
+                await removePlanItem({ planId: mem.planId, itemId: mem.itemId });
+                invalidatePlanMembership(placeId);
+                setPlanByPlaceId((prev) => {
+                  const next = { ...prev };
+                  delete next[placeId];
+                  return next;
+                });
+                if (getPlaceId(selectedPlace) === placeId) setPlanMembership(null);
+                setPlanPins((prev) => prev.filter((it) => getPlaceId(it.place) !== placeId));
+              } catch (e) {
+                console.error(e);
+                alert("旅行プランからの削除に失敗しました。");
+              }
             }}
-          >
-            <MapPopup
-              title={placeName}
-              message="行きたい場所リストに追加しますか？"
-              confirmLabel={isSaving ? "保存中..." : "追加する"}
-              cancelLabel="キャンセル"
-              confirmDisabled={isSaving || !currentVideo?.id || !getPlaceId(selectedPlace)}
-              onConfirm={handleAddFavorite}
-              onCancel={() => setIsPopupOpen(false)}
-            />
-          </div>
-        )}
-      </Map>
-
-      {showDetail && (isSavedGlobally || !!planMembership) && (
-        <PlaceDetailCard
-          variant="overlay"
-          place={selectedPlace}
-          thumbnailUrl={placeThumbUrl ?? currentVideo?.thumbnail ?? null}
-          isSaved={isSavedGlobally}
-          isSaving={isSaving}
-          onAdd={() => {
-            if (isSaving) return;
-            const pid = getPlaceId(selectedPlace);
-            if (!currentVideo?.id || !pid) {
-              alert("追加できません（動画または場所情報が不足しています）。");
-              return;
-            }
-            handleAddFavorite();
-          }}
-          onRemove={() => {
-            if (currentWishlistId) {
-              handleRemoveWishlist(currentWishlistId);
-            } else {
-              alert("削除対象のIDが取得できませんでした。");
-            }
-          }}
-          onAddToPlan={() => {
-            onRequestExpand?.();
-            onUnmask?.();
-            setModalSource({ type: "detail", placeId: getPlaceId(selectedPlace) });
-            setModalPlace(selectedPlace);
-            setShowPlanModal(true);
-          }}
-          planMembership={planMembership}
-          onRemoveFromPlan={async () => {
-            if (!planMembership) return;
-            try {
-              await removePlanItem({ planId: planMembership.planId, itemId: planMembership.itemId });
-              const pid = getPlaceId(selectedPlace);
-              invalidatePlanMembership(pid);
-              setPlanMembership(null);
-              setPlanByPlaceId((prev) => {
-                const next = { ...prev };
-                delete next[pid];
-                return next;
-              });
-              setPlanPins((prev) => prev.filter((it) => getPlaceId(it.place) !== pid));
-            } catch (e) {
-              console.error(e);
-              alert("旅行プランから削除に失敗しました。");
-            }
-          }}
-          onClose={() => setShowDetail(false)}
-          thumbWidth={120}
-          thumbHeight={100}
-          overlayOffset="clamp(24px, 5vh, 56px)"
-        />
+          />
+        </div>
       )}
 
       {showPlanModal && modalPlace && (
@@ -737,37 +802,10 @@ function MapPreview({
         />
       )}
 
-      {showWishlist && (
-        <WishlistPanel
-          bottomOffset="clamp(24px, 6vh, 64px)"
-          items={wlItems}
-          loading={wlLoading}
-          hasNext={wlNext != null}
-          onLoadMore={handleLoadMore}
-          onClose={handleCloseWishlist}
-          onSelect={handleSelectWishlistItem}
-          onRemove={handleRemoveWishlist}
-          onAddToPlan={handleAddToPlanFromWishlist}
-          totalCount={totalFavCount}
-          planByPlaceId={planByPlaceId}
-          onRemoveFromPlan={async (placeId) => {
-            const mem = planByPlaceId[placeId];
-            if (!mem) return;
-            try {
-              await removePlanItem({ planId: mem.planId, itemId: mem.itemId });
-              invalidatePlanMembership(placeId);
-              setPlanByPlaceId((prev) => {
-                const next = { ...prev };
-                delete next[placeId];
-                return next;
-              });
-              if (getPlaceId(selectedPlace) === placeId) setPlanMembership(null);
-              setPlanPins((prev) => prev.filter((it) => getPlaceId(it.place) !== placeId));
-            } catch (e) {
-              console.error(e);
-              alert("旅行プランからの削除に失敗しました。");
-            }
-          }}
+      {showPlanPicker && (
+        <PlanPickerModal
+          onClose={() => setShowPlanPicker(false)}
+          onSelect={handleChoosePlanToView}
         />
       )}
     </div>

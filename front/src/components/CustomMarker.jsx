@@ -7,6 +7,7 @@ function CustomMarker({
   isSelected = false,
   inPlan = false,
   sortOrder = null,
+  forceNumberPin = false,
   onClick,
 }) {
   const map = useMap();
@@ -44,7 +45,25 @@ function CustomMarker({
 
     let baseEl;
 
-    if (isFavorite) {
+    if (forceNumberPin && typeof sortOrder === "number") {
+      const pin = new PinElement({
+        scale: 1.6,
+        glyph: String(sortOrder),
+        glyphColor: "#fff",
+        background: "#2ca478",
+        borderColor: "#2ca478",
+      });
+      const wrap = document.createElement("div");
+      wrap.style.width = `${SIZE}px`;
+      wrap.style.height = `${SIZE}px`;
+      wrap.style.display = "grid";
+      wrap.style.placeItems = "center";
+      wrap.style.position = "relative";
+      wrap.style.zIndex = "1";
+      wrap.appendChild(pin.element);
+      baseEl = wrap;
+
+    } else if (isFavorite) {
       const img = document.createElement("img");
       img.src = isSelected ? "/selectedfilledheart.svg" : "/filledheart.svg";
       img.alt = "お気に入り";
@@ -94,43 +113,30 @@ function CustomMarker({
 
     container.appendChild(baseEl);
 
-    if (inPlan && isFavorite) {
-      const badge = document.createElement("div");
-      badge.style.position = "absolute";
-      badge.style.right = "-2px";
-      badge.style.bottom = "-2px";
-      badge.style.width = `${BADGE_SIZE}px`;
-      badge.style.height = `${BADGE_SIZE}px`;
-      badge.style.borderRadius = `${BADGE_SIZE / 2}px`;
-      badge.style.background = "#fff";
-      badge.style.boxShadow = "0 1px 3px rgba(0,0,0,.25)";
-      badge.style.display = "grid";
-      badge.style.placeItems = "center";
-      badge.style.zIndex = "2";
+    if (!(forceNumberPin && typeof sortOrder === "number")) {
+      if (inPlan && isFavorite) {
+        const badge = document.createElement("div");
+        badge.style.position = "absolute";
+        badge.style.right = "-2px";
+        badge.style.bottom = "-2px";
+        badge.style.width = `${BADGE_SIZE}px`;
+        badge.style.height = `${BADGE_SIZE}px`;
+        badge.style.borderRadius = `${BADGE_SIZE / 2}px`;
+        badge.style.background = "#fff";
+        badge.style.boxShadow = "0 1px 3px rgba(0,0,0,.25)";
+        badge.style.display = "grid";
+        badge.style.placeItems = "center";
+        badge.style.zIndex = "2";
 
-      if (typeof sortOrder === "number") {
-        const num = document.createElement("div");
-        num.textContent = String(sortOrder);
-        num.style.minWidth = `${BADGE_INNER}px`;
-        num.style.height = `${BADGE_INNER}px`;
-        num.style.borderRadius = `${BADGE_INNER / 2}px`;
-        num.style.background = "#2ca478";
-        num.style.color = "#fff";
-        num.style.fontWeight = "700";
-        num.style.fontSize = "12px";
-        num.style.lineHeight = `${BADGE_INNER}px`;
-        num.style.textAlign = "center";
-        badge.appendChild(num);
-      } else {
         const bag = document.createElement("img");
         bag.src = "/badge-bag.svg";
         bag.alt = "プランに含まれる";
         bag.style.width = "14px";
         bag.style.height = "14px";
         badge.appendChild(bag);
-      }
 
-      container.appendChild(badge);
+        container.appendChild(badge);
+      }
     }
 
     const marker = new AdvancedMarkerElement({
@@ -146,7 +152,7 @@ function CustomMarker({
     return () => {
       if (markerRef.current) markerRef.current.map = null;
     };
-  }, [map, markerLib, position, isFavorite, isSelected, inPlan, sortOrder, onClick]);
+  }, [map, markerLib, position, isFavorite, isSelected, inPlan, sortOrder, forceNumberPin, onClick]);
 
   return null;
 }

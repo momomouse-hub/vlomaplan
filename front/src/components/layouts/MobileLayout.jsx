@@ -10,6 +10,7 @@ import PlaceAutocomplete from "../PlaceAutocomplete";
 function MobileLayout({ id, relatedVideos, channels, currentVideo }) {
   const navigate = useNavigate();
   const sheetRef = useRef(null);
+  const autocompleteInputRef = useRef(null);
 
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [isMapOpen, setIsMapOpen] = useState(false);
@@ -22,7 +23,8 @@ function MobileLayout({ id, relatedVideos, channels, currentVideo }) {
   const masked = (wishlistTotal === 0 || wishlistTotal === null) && !selectedPlace;
   const [snapPoints, setSnapPoints] = useState([560, 360]);
 
-  const isDesktop = typeof window !== "undefined" &&
+  const isDesktop =
+    typeof window !== "undefined" &&
     window.matchMedia?.("(hover: hover) and (pointer: fine)").matches;
 
   const computeSnapPoints = () => {
@@ -31,23 +33,17 @@ function MobileLayout({ id, relatedVideos, channels, currentVideo }) {
     const winH = window.innerHeight || 0;
     const vh = clientH || vvH || winH || 800;
 
-    const headerH =
-      parseFloat(
-        getComputedStyle(document.documentElement).getPropertyValue("--header-h")
-      ) || 0;
-
     const SLOP = isDesktop ? 48 : 24;
-
-    const maxUsable = Math.max(0, vh - headerH - SLOP);
-
+    // ヘッダーは MainLayout 側で処理済みなのでここでは引かない
+    const maxUsable = Math.max(0, vh - SLOP);
     const full = Math.max(420, Math.floor(maxUsable));
-    const mid  = Math.min(400, Math.round(full * 0.6));
+    const mid = Math.min(400, Math.round(full * 0.6));
     return [full, mid];
   };
 
   useLayoutEffect(() => {
     setSnapPoints(computeSnapPoints());
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []); // eslint-disable-line
 
   useEffect(() => {
     const onResize = () => setSnapPoints(computeSnapPoints());
@@ -57,18 +53,13 @@ function MobileLayout({ id, relatedVideos, channels, currentVideo }) {
       window.removeEventListener("resize", onResize);
       window.visualViewport?.removeEventListener("resize", onResize);
     };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []); // eslint-disable-line
 
   useEffect(() => {
     const prev = document.body.style.overflow;
-    if (isSheetOpen) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = prev || "";
-    }
-    return () => {
-      document.body.style.overflow = prev || "";
-    };
+    if (isSheetOpen) document.body.style.overflow = "hidden";
+    else document.body.style.overflow = prev || "";
+    return () => (document.body.style.overflow = prev || "");
   }, [isSheetOpen]);
 
   useEffect(() => {
@@ -79,14 +70,10 @@ function MobileLayout({ id, relatedVideos, channels, currentVideo }) {
         sheetRef.current?.snapTo(0);
       });
     });
-  }, [isSheetOpen]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isSheetOpen]); // eslint-disable-line
 
   useEffect(() => {
-    if (isSheetOpen) {
-      setIsMapOpen(true);
-    } else {
-      setIsMapOpen(false);
-    }
+    setIsMapOpen(isSheetOpen);
   }, [isSheetOpen]);
 
   const handleSelectPlace = (p) => {
@@ -101,8 +88,25 @@ function MobileLayout({ id, relatedVideos, channels, currentVideo }) {
 
   const expandSheetToMax = () => {
     setIsSheetOpen(true);
+    requestAnimationFrame(() => sheetRef.current?.snapTo(0));
+  };
+
+  const openSheetAndFocus = () => {
+    setIsSheetOpen(true);
     requestAnimationFrame(() => {
-      sheetRef.current?.snapTo(0);
+      requestAnimationFrame(() => {
+        sheetRef.current?.snapTo(0);
+        setTimeout(() => {
+          const el = autocompleteInputRef.current;
+          if (el?.focus) {
+            el.focus();
+            try {
+              const len = el.value?.length ?? 0;
+              el.setSelectionRange?.(len, len);
+            } catch {}
+          }
+        }, 60);
+      });
     });
   };
 
@@ -133,6 +137,7 @@ function MobileLayout({ id, relatedVideos, channels, currentVideo }) {
         ))}
       </div>
 
+      {/* 画面下部の検索バー（ボトム） */}
       <div
         style={{
           position: "fixed",
@@ -147,9 +152,10 @@ function MobileLayout({ id, relatedVideos, channels, currentVideo }) {
           borderTop: "1px solid #ddd",
         }}
       >
-        <MapSearchBar onFocus={() => setIsSheetOpen(true)} />
+        <MapSearchBar onPress={openSheetAndFocus} />
       </div>
 
+      {/* マップシート */}
       <Sheet
         ref={sheetRef}
         isOpen={isSheetOpen}
@@ -162,11 +168,14 @@ function MobileLayout({ id, relatedVideos, channels, currentVideo }) {
           style={{
             zIndex: 2000,
             overflow: "hidden",
-            maxHeight: "calc(100dvh - var(--header-h) - 8px)",
+            maxHeight: "calc(100dvh - 8px)",
           }}
         >
           <Sheet.Header>
-            <PlaceAutocomplete onPlaceSelect={handleSelectPlace} />
+            <PlaceAutocomplete
+              onPlaceSelect={handleSelectPlace}
+              inputRef={autocompleteInputRef}
+            />
           </Sheet.Header>
 
           <Sheet.Content
@@ -178,24 +187,6 @@ function MobileLayout({ id, relatedVideos, channels, currentVideo }) {
               minHeight: 0,
             }}
           >
-            {/* <div
-              style={{ minHeight: 0 }}
-              onTouchStart={() => setIsDraggingMap(true)}
-              onTouchEnd={() => setIsDraggingMap(false)}
-              onMouseEnter={() => setIsDraggingMap(true)}
-              onMouseLeave={() => setIsDraggingMap(false)}
-            >
-              {isMapOpen && (
-                <MapPreview
-                  position={position}
-                  placeName={placeName}
-                  selectedPlace={selectedPlace}
-                  currentVideo={currentVideo}
-                  onRequestExpand={expandSheetToMax}
-                  onSelectPlace={handleSelectPlace}
-                />
-              )}
-            </div> */}
             <div style={{ position: "relative", minHeight: 0 }}>
               {isMapOpen && (
                 <>
