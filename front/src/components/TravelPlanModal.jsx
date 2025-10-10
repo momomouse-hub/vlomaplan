@@ -30,23 +30,29 @@ export default function TravelPlanModal({ place, onClose, onAdded }) {
       setLoading(true);
       setError(null);
       try {
-        try { await ensureVisitor(); } catch {}
+        try {
+          await ensureVisitor();
+        } catch (e) {
+          console.debug("ensureVisitor failed (ignored):", e);
+        }
         const [plansRes, containsRes] = await Promise.all([
           listTravelPlans({ page: 1, per: 200 }),
-          placeId ? plansContainingPlace({ placeId }) : Promise.resolve({ plans: [], placeExists: false }),
+          placeId
+            ? plansContainingPlace({ placeId })
+            : Promise.resolve({ plans: [], placeExists: false }),
         ]);
         if (!mounted) return;
 
         const ps = plansRes.items || [];
         const map = {};
-        (containsRes.plans || []).forEach(p => {
+        (containsRes.plans || []).forEach((p) => {
           map[p.id] = { hasPlace: !!p.hasPlace, itemId: p.itemId, name: p.name };
         });
 
         setPlans(ps);
         setContainsMap(map);
 
-        const firstHas = (containsRes.plans || []).find(p => p.hasPlace);
+        const firstHas = (containsRes.plans || []).find((p) => p.hasPlace);
         if (firstHas) {
           setSelectedPlanId(firstHas.id);
         } else {
@@ -60,14 +66,18 @@ export default function TravelPlanModal({ place, onClose, onAdded }) {
         if (mounted) setLoading(false);
       }
     })();
-    return () => { mounted = false; };
+    return () => {
+      mounted = false;
+    };
   }, [placeId]);
 
   const selectedPlanName = useMemo(() => {
     if (selectedPlanId === NEW_VALUE) return newPlanName.trim();
-    return plans.find(p => p.id === selectedPlanId)?.name
-      || containsMap[selectedPlanId]?.name
-      || "";
+    return (
+      plans.find((p) => p.id === selectedPlanId)?.name ||
+      containsMap[selectedPlanId]?.name ||
+      ""
+    );
   }, [plans, containsMap, selectedPlanId, newPlanName]);
 
   function handleSelectChange(e) {
@@ -82,7 +92,7 @@ export default function TravelPlanModal({ place, onClose, onAdded }) {
     setError(null);
     try {
       const res = await createTravelPlan({ name: newPlanName.trim() });
-      setPlans(prev => [{ id: res.id, name: res.name, itemsCount: 0 }, ...prev]);
+      setPlans((prev) => [{ id: res.id, name: res.name, itemsCount: 0 }, ...prev]);
       setSelectedPlanId(res.id);
       setNewPlanName("");
     } catch (e) {
@@ -153,36 +163,71 @@ export default function TravelPlanModal({ place, onClose, onAdded }) {
     <div
       role="dialog"
       aria-modal="true"
-      onClick={onClose}
+      aria-label="旅行プランに追加"
       style={{
-        position: "fixed", inset: 0, background: "rgba(0,0,0,.4)",
-        zIndex: 5000, display: "flex", alignItems: "center",
-        justifyContent: "center", padding: 16,
+        position: "fixed",
+        inset: 0,
+        zIndex: 5000,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 16,
       }}
     >
-      <div
-        onClick={(e) => e.stopPropagation()}
+      <button
+        type="button"
+        aria-label="閉じる（背景）"
+        onClick={onClose}
+        onKeyDown={(e) => {
+          if (e.key === "Escape") onClose();
+        }}
         style={{
-          width: "min(560px, 96vw)", background: "#fff", borderRadius: 16,
-          boxShadow: "0 10px 24px rgba(0,0,0,.25)", padding: 16,
+          position: "fixed",
+          inset: 0,
+          background: "rgba(0,0,0,.4)",
+          border: "none",
+          padding: 0,
+          margin: 0,
+          cursor: "default",
+        }}
+      />
+
+      <div
+        style={{
+          width: "min(560px, 96vw)",
+          background: "#fff",
+          borderRadius: 16,
+          boxShadow: "0 10px 24px rgba(0,0,0,.25)",
+          padding: 16,
+          position: "relative",
+          zIndex: 1,
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <div style={{ fontWeight: 700, fontSize: 18 }}>どのプランに追加しますか？</div>
           <button
-            type="button" aria-label="close" onClick={onClose}
+            type="button"
+            aria-label="close"
+            onClick={onClose}
             style={{
-              marginLeft: "auto", background: "#f2f2f2", border: "none",
-              width: 28, height: 28, borderRadius: 14, cursor: "pointer", fontWeight: 700,
+              marginLeft: "auto",
+              background: "#f2f2f2",
+              border: "none",
+              width: 28,
+              height: 28,
+              borderRadius: 14,
+              cursor: "pointer",
+              fontWeight: 700,
             }}
-          >×</button>
+          >
+            ×
+          </button>
         </div>
 
         <div style={{ marginTop: 8, color: "#666", fontSize: 13 }}>
           追加対象：<b>{place?.name ?? "-"}</b>
         </div>
 
-        {/* 検索欄は撤去してシンプルにセレクトのみ */}
         <div style={{ marginTop: 12 }}>
           {loading ? (
             <div style={{ padding: 12, color: "#666" }}>読み込み中…</div>
@@ -200,7 +245,8 @@ export default function TravelPlanModal({ place, onClose, onAdded }) {
                 const suffix = already ? "（この場所は追加済み）" : "";
                 return (
                   <option key={p.id} value={p.id}>
-                    {p.name}{suffix}
+                    {p.name}
+                    {suffix}
                   </option>
                 );
               })}
@@ -224,8 +270,12 @@ export default function TravelPlanModal({ place, onClose, onAdded }) {
               onClick={handleCreateOnly}
               disabled={!newPlanName.trim() || creating}
               style={{
-                background: "#eee", border: "none", borderRadius: 999,
-                padding: "8px 12px", cursor: creating ? "default" : "pointer", opacity: creating ? 0.6 : 1
+                background: "#eee",
+                border: "none",
+                borderRadius: 999,
+                padding: "8px 12px",
+                cursor: creating ? "default" : "pointer",
+                opacity: creating ? 0.6 : 1,
               }}
             >
               {creating ? "作成中…" : "作成"}
@@ -244,9 +294,14 @@ export default function TravelPlanModal({ place, onClose, onAdded }) {
             onClick={handleSubmit}
             disabled={loading || submitting || (!selectedPlanId && selectedPlanId !== 0)}
             style={{
-              background: "#2CA478", color: "#fff",
-              border: "none", padding: "8px 16px", borderRadius: 999,
-              fontWeight: 700, cursor: "pointer", opacity: submitting ? 0.6 : 1
+              background: "#2CA478",
+              color: "#fff",
+              border: "none",
+              padding: "8px 16px",
+              borderRadius: 999,
+              fontWeight: 700,
+              cursor: "pointer",
+              opacity: submitting ? 0.6 : 1,
             }}
           >
             {submitting ? "追加中…" : "このプランに追加"}

@@ -15,7 +15,7 @@ URL:https://app.vlomaplan.com/
 ## 使用した技術
 
 - フロントエンド
-  - HTML / CSS 
+  - HTML / CSS
   - JavaScript（React 19, Vite）
   - React Router（ルーティング）
   - @vis.gl/react-google-maps（地図表示）
@@ -24,8 +24,8 @@ URL:https://app.vlomaplan.com/
   - ESLint / Prettier（コード整形・静的解析）
 
 - バックエンド
-  - Ruby 3.2.8
-  - Ruby on Rails 7.1.5（APIモード）
+  - Ruby 3.4.5
+  - Ruby on Rails 8.0.2（APIモード）
   - RSpec（テスト）
   - RuboCop（コード解析）
   - bcrypt（パスワードハッシュ）

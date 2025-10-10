@@ -1,4 +1,5 @@
 import { apiFetch, apiFetchJson } from "./client";
+
 const base = import.meta.env.VITE_API_BASE_URL || "";
 
 export async function listTravelPlans({ page = 1, per = 50 } = {}) {

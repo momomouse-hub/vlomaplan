@@ -16,7 +16,7 @@ function CustomMarker({
   const clickListenerRef = useRef(null);
 
   useEffect(() => {
-    if (!map || !markerLib || !position) return;
+    if (!map || !markerLib || !position) return () => {};
 
     const { AdvancedMarkerElement } = markerLib;
 
@@ -26,10 +26,6 @@ function CustomMarker({
       zIndex: isSelected ? 999 : 0,
       gmpClickable: true,
     });
-
-    if (onClick && marker.addListener) {
-      clickListenerRef.current = marker.addListener("click", onClick);
-    }
 
     markerRef.current = marker;
 

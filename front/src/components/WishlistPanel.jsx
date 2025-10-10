@@ -21,9 +21,13 @@ export default function WishlistPanel({
   const sentinelRef = useRef(null);
 
   useEffect(() => {
-    if (!hasNext || loading) return;
+    if (!hasNext || loading) {
+      return () => {};
+    }
     const el = sentinelRef.current;
-    if (!el) return;
+    if (!el) {
+      return () => {};
+    }
     const io = new IntersectionObserver((entries) => {
       entries.forEach((e) => {
         if (e.isIntersecting) onLoadMore?.();
@@ -57,7 +61,7 @@ export default function WishlistPanel({
         zIndex: 3000,
         display: "flex",
         flexDirection: "column",
-        height: heightPx ? heightPx : "50vh",
+        height: heightPx ?? "50vh",
         overflow: "hidden",
       };
 
@@ -105,7 +109,9 @@ export default function WishlistPanel({
       </div>
 
       <div style={{ flex: 1, overflowY: "auto", padding: 12, gap: 10, display: "grid" }}>
-        {items.length === 0 && !loading && <div style={{ color: "#666" }}>まだ保存がありません</div>}
+        {items.length === 0 && !loading && (
+          <div style={{ color: "#666" }}>まだ保存がありません</div>
+        )}
 
         {items.map((it) => {
           const pid = getPlaceId(it.place);
@@ -128,7 +134,9 @@ export default function WishlistPanel({
 
         <div ref={sentinelRef} style={{ height: 1 }} />
         {loading && (
-          <div style={{ padding: "8px 0", textAlign: "center", color: "#666" }}>読み込み中…</div>
+          <div style={{ padding: "8px 0", textAlign: "center", color: "#666" }}>
+            読み込み中…
+          </div>
         )}
         {!hasNext && items.length > 0 && (
           <div style={{ padding: "6px 0", textAlign: "center", color: "#999", fontSize: 12 }}>

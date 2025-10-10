@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { fetchIdentity } from "../api/identity";
 import { TOKEN_KEY } from "../api/client";
 
@@ -16,10 +16,14 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
-  useEffect(() => { refresh(); }, [refresh]);
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
 
   useEffect(() => {
-    const onTokenChanged = () => { refresh(); };
+    const onTokenChanged = () => {
+      refresh();
+    };
     window.addEventListener("auth:token-changed", onTokenChanged);
     return () => window.removeEventListener("auth:token-changed", onTokenChanged);
   }, [refresh]);
@@ -32,11 +36,9 @@ export function AuthProvider({ children }) {
     return () => window.removeEventListener("storage", onStorage);
   }, [refresh]);
 
-  return (
-    <AuthContext.Provider value={{ identity, refresh }}>
-      {children}
-    </AuthContext.Provider>
-  );
+  const ctxValue = useMemo(() => ({ identity, refresh }), [identity, refresh]);
+
+  return <AuthContext.Provider value={ctxValue}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {

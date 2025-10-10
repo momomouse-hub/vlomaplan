@@ -4,7 +4,7 @@ class Api::TravelPlanItemsController < ApplicationController
 
   def index
     items = @plan.travel_plan_items.includes(place: { video_view_places: :video_view }).order(:sort_order, :id)
-    render json: { items: items.map { |it| serialize_item(it) } }
+    render json: { items: items.map { |item| serialize_item(item) } }
   end
 
   def create
@@ -18,7 +18,7 @@ class Api::TravelPlanItemsController < ApplicationController
       if item.new_record?
         item.sort_order = next_order
         item.save!
-        @plan.touch
+        @plan.update!(updated_at: Time.current)
       end
     end
 
@@ -28,15 +28,17 @@ class Api::TravelPlanItemsController < ApplicationController
   end
 
   def destroy
-    it = @plan.travel_plan_items.find_by(id: params[:id])
-    return head :not_found unless it
+    item = @plan.travel_plan_items.find_by(id: params[:id])
+    return head :not_found unless item
 
     TravelPlanItem.transaction do
       @plan.lock!
-      removed_order = it.sort_order
-      it.destroy!
-      @plan.travel_plan_items.where("sort_order > ?", removed_order).update_all("sort_order = sort_order - 1")
-      @plan.touch
+      removed_order = item.sort_order
+      item.destroy!
+      @plan.travel_plan_items.where("sort_order > ?", removed_order).find_each do |row|
+        row.update!(sort_order: row.sort_order - 1)
+      end
+      @plan.update!(updated_at: Time.current)
     end
 
     head :no_content
@@ -47,10 +49,10 @@ class Api::TravelPlanItemsController < ApplicationController
     TravelPlanItem.transaction do
       @plan.lock!
       payload.each do |row|
-        it = @plan.travel_plan_items.find(row[:id])
-        it.update!(sort_order: Integer(row[:sort_order]))
+        item = @plan.travel_plan_items.find(row[:id])
+        item.update!(sort_order: Integer(row[:sort_order]))
       end
-      @plan.touch
+      @plan.update!(updated_at: Time.current)
     end
     head :no_content
   end
@@ -63,7 +65,17 @@ class Api::TravelPlanItemsController < ApplicationController
   end
 
   def place_params
-    params.require(:place).permit(:place_id, :placeId, :name, :address, :latitude, :longitude)
+    filtered = params.expect(place: %i[place_id placeId name address latitude longitude])
+    place =
+      if filtered.respond_to?(:key?) && (filtered.key?(:place) || filtered.key?('place'))
+        filtered[:place] || filtered['place']
+      else
+        filtered
+      end
+
+    raise ActionController::ParameterMissing, :place if place.blank?
+
+    place
   end
 
   def find_or_create_place!(attrs)
@@ -83,15 +95,15 @@ class Api::TravelPlanItemsController < ApplicationController
     )
   end
 
-  def serialize_item(it)
-    pl = it.place
+  def serialize_item(item)
+    pl = item.place
     latest_vvp = pl.video_view_places.max_by(&:created_at)
     thumb = latest_vvp&.video_view&.thumbnail_url
 
     {
-      id: it.id,
-      sort_order: it.sort_order,
-      created_at: it.created_at,
+      id: item.id,
+      sort_order: item.sort_order,
+      created_at: item.created_at,
       place: {
         id: pl.id,
         place_id: pl.place_id,

@@ -34,7 +34,6 @@ function MobileLayout({ id, relatedVideos, channels, currentVideo }) {
     const vh = clientH || vvH || winH || 800;
 
     const SLOP = isDesktop ? 48 : 24;
-    // ヘッダーは MainLayout 側で処理済みなのでここでは引かない
     const maxUsable = Math.max(0, vh - SLOP);
     const full = Math.max(420, Math.floor(maxUsable));
     const mid = Math.min(400, Math.round(full * 0.6));
@@ -57,9 +56,14 @@ function MobileLayout({ id, relatedVideos, channels, currentVideo }) {
 
   useEffect(() => {
     const prev = document.body.style.overflow;
-    if (isSheetOpen) document.body.style.overflow = "hidden";
-    else document.body.style.overflow = prev || "";
-    return () => (document.body.style.overflow = prev || "");
+    if (isSheetOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = prev || "";
+    }
+    return () => {
+      document.body.style.overflow = prev || "";
+    };
   }, [isSheetOpen]);
 
   useEffect(() => {
@@ -103,7 +107,10 @@ function MobileLayout({ id, relatedVideos, channels, currentVideo }) {
             try {
               const len = el.value?.length ?? 0;
               el.setSelectionRange?.(len, len);
-            } catch {}
+            } catch (e) {
+              // ✦ 修正: 空の catch を回避（no-empty 対応）
+              // 一部ブラウザで selectionRange が失敗するケースを無視
+            }
           }
         }, 60);
       });
@@ -137,7 +144,6 @@ function MobileLayout({ id, relatedVideos, channels, currentVideo }) {
         ))}
       </div>
 
-      {/* 画面下部の検索バー（ボトム） */}
       <div
         style={{
           position: "fixed",
@@ -155,7 +161,6 @@ function MobileLayout({ id, relatedVideos, channels, currentVideo }) {
         <MapSearchBar onPress={openSheetAndFocus} />
       </div>
 
-      {/* マップシート */}
       <Sheet
         ref={sheetRef}
         isOpen={isSheetOpen}

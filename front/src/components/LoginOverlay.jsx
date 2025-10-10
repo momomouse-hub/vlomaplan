@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { login } from "../api/sessions";
 import { useAuth } from "../contexts/AuthContext";
@@ -10,12 +10,15 @@ export default function LoginOverlay({ onClose, onSwitchToRegister }) {
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [msg, setMsg] = useState("");
+  const emailRef = useRef(null);
 
   useEffect(() => {
     const onKey = (e) => e.key === "Escape" && onClose();
     document.addEventListener("keydown", onKey);
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
+    // 初期フォーカス
+    emailRef.current?.focus();
     return () => {
       document.removeEventListener("keydown", onKey);
       document.body.style.overflow = prev;
@@ -48,6 +51,8 @@ export default function LoginOverlay({ onClose, onSwitchToRegister }) {
     background: "rgba(255,255,255,0.94)",
     boxShadow: "0 10px 30px rgba(0,0,0,0.2)",
     padding: 20,
+    position: "relative",
+    zIndex: 1, // 背景より前面
   };
   const inputStyle = {
     width: "100%",
@@ -84,18 +89,39 @@ export default function LoginOverlay({ onClose, onSwitchToRegister }) {
 
   return (
     <div
-      onClick={onClose}
       style={{
         position: "fixed",
         inset: 0,
-        background: "rgba(0,0,0,0.6)",
         zIndex: 1000,
         display: "grid",
         placeItems: "start center",
         paddingTop: 80,
       }}
     >
-      <div onClick={(e) => e.stopPropagation()} style={cardStyle}>
+      {/* 背景はボタンにして a11y クリア＆カードより背面に */}
+      <button
+        type="button"
+        onClick={onClose}
+        aria-label="背景をクリックして閉じる"
+        style={{
+          position: "absolute",
+          inset: 0,
+          background: "rgba(0,0,0,0.6)",
+          border: "none",
+          margin: 0,
+          padding: 0,
+          cursor: "pointer",
+          zIndex: 0,
+        }}
+      />
+
+      {/* モーダル本体 */}
+      <div role="dialog" aria-modal="true" aria-labelledby="login-title" style={cardStyle}>
+        <h2 id="login-title" style={{ margin: 0, fontSize: 18, fontWeight: 700, textAlign: "center" }}>
+          ログイン
+        </h2>
+        <div style={{ height: 12 }} />
+
         {msg && (
           <p
             style={{
@@ -115,11 +141,13 @@ export default function LoginOverlay({ onClose, onSwitchToRegister }) {
           </label>
           <input
             id="login-email"
+            ref={emailRef}
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
             style={inputStyle}
+            autoComplete="email"
           />
 
           <label htmlFor="login-password" style={{ fontWeight: 600 }}>
@@ -132,6 +160,7 @@ export default function LoginOverlay({ onClose, onSwitchToRegister }) {
             onChange={(e) => setPassword(e.target.value)}
             required
             style={inputStyle}
+            autoComplete="current-password"
           />
 
           <button type="submit" disabled={submitting} style={primaryBtn}>

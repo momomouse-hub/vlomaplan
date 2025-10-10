@@ -1,4 +1,3 @@
-// src/components/MapPreview.jsx
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { useMap, Map } from "@vis.gl/react-google-maps";
 import CustomMarker from "./CustomMarker";
@@ -97,18 +96,26 @@ function MapPreview({
   const [viewPlanLoading, setViewPlanLoading] = useState(false);
   const isViewingPlan = !!(showPlanPanel && viewPlan && Array.isArray(viewPlanItems));
 
+  // --- helpers ---------------------------------------------------------------
+
+  // 逐次ページング（await-in-loop を避けるため再帰で実装）
+  const fetchAllWishlists = useCallback(async (startPage = 1, per = 200) => {
+    const acc = [];
+    const visit = async (page) => {
+      const data = await listWishlists({ page, per });
+      acc.push(...(data.items || []));
+      const next = data.pagination?.next ?? null;
+      if (next && page <= 50) {
+        await visit(next);
+      }
+    };
+    await visit(startPage);
+    return acc;
+  }, []);
+
   const refreshSavedPins = useCallback(async () => {
     try {
-      const acc = [];
-      let page = 1;
-      const per = 200;
-      for (;;) {
-        const data = await listWishlists({ page, per });
-        acc.push(...(data.items || []));
-        const next = data.pagination?.next ?? null;
-        if (!next || page > 50) break;
-        page = next;
-      }
+      const acc = await fetchAllWishlists(1, 200);
       setSavedPins(
         acc
           .map((it) => ({ id: it.id, place: it.place }))
@@ -121,14 +128,17 @@ function MapPreview({
     } catch (e) {
       console.warn("refreshSavedPins failed:", e);
     }
-  }, []);
+  }, [fetchAllWishlists]);
 
   const refreshPlanPins = useCallback(async () => {
     try {
       const plansRes = await listTravelPlans({ page: 1, per: 200 });
       const plans = plansRes.items || [];
       setHasAnyPlans(plans.length > 0);
-      if (plans.length === 0) return setPlanPins([]);
+      if (plans.length === 0) {
+        setPlanPins([]);
+        return;
+      }
 
       const itemsArrays = await Promise.all(
         plans.map((p) => listPlanItems({ planId: p.id }).catch(() => ({ items: [] })))
@@ -144,12 +154,12 @@ function MapPreview({
 
       const seen = new Set();
       const uniq = [];
-      for (const it of acc) {
+      acc.forEach((it) => {
         const pid = getPlaceId(it.place);
-        if (!pid || seen.has(pid)) continue;
+        if (!pid || seen.has(pid)) return;
         seen.add(pid);
         uniq.push(it);
-      }
+      });
 
       setPlanPins(
         uniq.filter(
@@ -165,7 +175,7 @@ function MapPreview({
 
   const loadWishlist = useCallback(
     async (page = wlNext, per = WL_PER) => {
-      if (wlLoading || page == null) return;
+      if (wlLoading || page == null) return false;
       setWlLoading(true);
       try {
         const data = await listWishlists({ page, per });
@@ -176,9 +186,11 @@ function MapPreview({
       } finally {
         setWlLoading(false);
       }
+      return true;
     },
     [wlLoading, wlNext]
   );
+
   const handleLoadMore = useCallback(() => loadWishlist(), [loadWishlist]);
 
   const handleOpenWishlist = useCallback(async () => {
@@ -209,44 +221,50 @@ function MapPreview({
     setShowPlanPicker(true);
   }, [onRequestExpand, onUnmask]);
 
-  const handleDeletePlan = useCallback(async (plan) => {
-    try {
-      await deleteTravelPlan({ planId: plan.id });
-
-      setShowPlanPanel(false);
-      setViewPlan(null);
-      setViewPlanItems([]);
-
-      setPlanPins((prev) => prev.filter((it) => it.planId !== plan.id));
-
-      setPlanByPlaceId((prev) => {
-        const next = { ...prev };
-        for (const [pid, mem] of Object.entries(next)) {
-          if (mem?.planId === plan.id) delete next[pid];
-        }
-        return next;
-      });
-
-      const selPid = getPlaceId(selectedPlace);
-      if (selPid) {
-        const mem = planByPlaceId[selPid];
-        if (mem?.planId === plan.id) {
-          invalidatePlanMembership(selPid);
-          setPlanMembership(null);
-        }
-      }
-
+  const handleDeletePlan = useCallback(
+    async (plan) => {
       try {
-        const res = await listTravelPlans({ page: 1, per: 1 });
-        setHasAnyPlans((res.items || []).length > 0);
-      } catch {}
+        await deleteTravelPlan({ planId: plan.id });
 
-      refreshPlanPins();
-    } catch (e) {
-      console.error(e);
-      alert("プランの削除に失敗しました。通信状況をご確認ください。");
-    }
-  }, [selectedPlace, planByPlaceId, refreshPlanPins]);
+        setShowPlanPanel(false);
+        setViewPlan(null);
+        setViewPlanItems([]);
+
+        setPlanPins((prev) => prev.filter((it) => it.planId !== plan.id));
+
+        setPlanByPlaceId((prev) => {
+          const next = { ...prev };
+          Object.entries(next).forEach(([pid, mem]) => {
+            if (mem?.planId === plan.id) delete next[pid];
+          });
+          return next;
+        });
+
+        const selPid = getPlaceId(selectedPlace);
+        if (selPid) {
+          const mem = planByPlaceId[selPid];
+          if (mem?.planId === plan.id) {
+            invalidatePlanMembership(selPid);
+            setPlanMembership(null);
+          }
+        }
+
+        try {
+          const res = await listTravelPlans({ page: 1, per: 1 });
+          setHasAnyPlans((res.items || []).length > 0);
+        } catch (e) {
+          console.warn("check hasAnyPlans failed:", e);
+        }
+
+        refreshPlanPins();
+      } catch (e) {
+        console.error(e);
+        // eslint-disable-next-line no-alert
+        alert("プランの削除に失敗しました。通信状況をご確認ください。");
+      }
+    },
+    [selectedPlace, planByPlaceId, refreshPlanPins]
+  );
 
   const loadViewPlanItems = useCallback(async (plan) => {
     setViewPlan(plan);
@@ -309,6 +327,7 @@ function MapPreview({
         }
       } catch (e) {
         console.error(e);
+        // eslint-disable-next-line no-alert
         alert("削除に失敗しました。");
       }
     },
@@ -326,6 +345,8 @@ function MapPreview({
     },
     [onRequestExpand, onUnmask]
   );
+
+  // --- effects ---------------------------------------------------------------
 
   useEffect(() => {
     if (!map) return;
@@ -409,7 +430,7 @@ function MapPreview({
         setPlanMembership(null);
       }
     })();
-  }, [selectedPlace?.placeId]);
+  }, [selectedPlace]);
 
   useEffect(() => {
     setIsPopupOpen(false);
@@ -421,9 +442,11 @@ function MapPreview({
   useEffect(() => {
     onWishlistTotalChange?.(totalFavCount);
   }, [totalFavCount, onWishlistTotalChange]);
-  useEffect(() => {
-    return () => onWishlistTotalChange?.(null);
-  }, [onWishlistTotalChange]);
+
+  useEffect(
+    () => () => onWishlistTotalChange?.(null),
+    [onWishlistTotalChange]
+  );
 
   useEffect(() => {
     if (didAutoCenter.current) return;
@@ -446,6 +469,8 @@ function MapPreview({
       })();
     }
   }, [totalFavCount, selectedPlace, onSelectPlace, map]);
+
+  // --- actions ---------------------------------------------------------------
 
   const handleAddFavorite = async () => {
     if (!selectedPlace || isSaving || isSavedGlobally) return;
@@ -476,34 +501,39 @@ function MapPreview({
       try {
         const { totalCount } = await totalCountWishlists();
         setTotalFavCount(Number(totalCount || 0));
-      } catch {}
+      } catch (e) {
+        console.warn("totalCount refresh failed:", e);
+      }
       try {
         const { wishlistId, thumbnailUrl } = await wishlistsStatus({
           placeId: getPlaceId(selectedPlace),
         });
         setCurrentWishlistId(wishlistId ?? null);
         if (thumbnailUrl) setPlaceThumbUrl(thumbnailUrl);
-      } catch {}
+      } catch (e) {
+        console.warn("wishlist status refresh failed:", e);
+      }
       refreshSavedPins();
       setIsPopupOpen(false);
       setShowDetail(true);
       onRequestExpand?.();
     } catch (e) {
       console.error(e);
+      // eslint-disable-next-line no-alert
       alert("保存に失敗しました。通信状況をご確認ください。");
     } finally {
       setIsSaving(false);
     }
   };
 
-  const wishlistByPlaceId = useMemo(() => {
-    const m = {};
-    for (const it of savedPins) {
-      const pid = getPlaceId(it.place);
-      if (pid) m[pid] = it.id;
-    }
-    return m;
-  }, [savedPins]);
+  const wishlistByPlaceId = useMemo(
+    () =>
+      savedPins.reduce((acc, it) => {
+        const pid = getPlaceId(it.place);
+        return pid ? { ...acc, [pid]: it.id } : acc;
+      }, {}),
+    [savedPins]
+  );
 
   const handleAddWishlistFromPlan = useCallback(
     async (place) => {
@@ -520,9 +550,12 @@ function MapPreview({
         try {
           const { totalCount } = await totalCountWishlists();
           setTotalFavCount(Number(totalCount || 0));
-        } catch {}
+        } catch (e) {
+          console.warn("totalCount refresh failed:", e);
+        }
       } catch (e) {
         console.error(e);
+        // eslint-disable-next-line no-alert
         alert("行きたい場所リストへの追加に失敗しました。");
         throw e;
       }
@@ -532,13 +565,21 @@ function MapPreview({
     [refreshSavedPins]
   );
 
-  const containerHeight =
-    mapHeight != null ? (typeof mapHeight === "number" ? `${mapHeight}px` : mapHeight) : "100%";
+  // --- layout consts ---------------------------------------------------------
+
+  let containerHeight;
+  if (mapHeight != null) {
+    containerHeight = typeof mapHeight === "number" ? `${mapHeight}px` : mapHeight;
+  } else {
+    containerHeight = "100%";
+  }
 
   const savedPidSet = new Set(savedPins.map((it) => getPlaceId(it.place)).filter(Boolean));
   const selectedPid = getPlaceId(selectedPlace);
   const isDockedOpen = isViewingPlan || showWishlist;
   const mapRowSize = "minmax(180px, 34%)";
+
+  // --- render ----------------------------------------------------------------
 
   return (
     <div
@@ -603,35 +644,35 @@ function MapPreview({
                 const sb = Number.isFinite(Number(b.sortOrder)) ? Number(b.sortOrder) : 0;
                 return sa - sb;
               })
-              .map((it) => {
-                const lat = Number(it.place.latitude);
-                const lng = Number(it.place.longitude);
-                const pid = getPlaceId(it.place);
-                const isSelected = selectedPid && selectedPid === pid;
-                const orderForDisplay = Number.isFinite(Number(it.sortOrder))
-                  ? Number(it.sortOrder) + 1
-                  : undefined;
-
-                return (
-                  <CustomMarker
-                    key={`view-${viewPlan.id}-${it.id}-${orderForDisplay}`}
-                    position={{ lat, lng }}
-                    isFavorite={false}
-                    isSelected={!!isSelected}
-                    inPlan
-                    sortOrder={orderForDisplay}
-                    forceNumberPin
-                    onClick={() => {
-                      setIsPopupOpen(false);
-                      setIsSavedGlobally(false);
-                      onSelectPlace?.({ ...it.place, placeId: pid });
-                      setShowDetail(true);
-                      onRequestExpand?.();
-                      map?.panTo({ lat, lng });
-                    }}
-                  />
-                );
-              })}
+              .map((it) => (
+                <CustomMarker
+                  key={`view-${viewPlan.id}-${it.id}-${
+                    Number.isFinite(Number(it.sortOrder)) ? Number(it.sortOrder) + 1 : undefined
+                  }`}
+                  position={{
+                    lat: Number(it.place.latitude),
+                    lng: Number(it.place.longitude),
+                  }}
+                  isFavorite={false}
+                  isSelected={!!(selectedPid && selectedPid === getPlaceId(it.place))}
+                  inPlan
+                  sortOrder={
+                    Number.isFinite(Number(it.sortOrder)) ? Number(it.sortOrder) + 1 : undefined
+                  }
+                  forceNumberPin
+                  onClick={() => {
+                    const lat = Number(it.place.latitude);
+                    const lng = Number(it.place.longitude);
+                    const pid = getPlaceId(it.place);
+                    setIsPopupOpen(false);
+                    setIsSavedGlobally(false);
+                    onSelectPlace?.({ ...it.place, placeId: pid });
+                    setShowDetail(true);
+                    onRequestExpand?.();
+                    map?.panTo({ lat, lng });
+                  }}
+                />
+              ))}
 
           {!isViewingPlan && !isSavedGlobally && selectedPlace && (
             <CustomMarker
@@ -749,6 +790,7 @@ function MapPreview({
               if (isSaving) return;
               const pid = getPlaceId(selectedPlace);
               if (!pid) {
+                // eslint-disable-next-line no-alert
                 alert("追加できません（場所情報が不足しています）。");
                 return;
               }
@@ -758,6 +800,7 @@ function MapPreview({
               if (currentWishlistId) {
                 handleRemoveWishlist(currentWishlistId);
               } else {
+                // eslint-disable-next-line no-alert
                 alert("削除対象のIDが取得できませんでした。");
               }
             }}
@@ -784,6 +827,7 @@ function MapPreview({
                 setPlanPins((prev) => prev.filter((it) => getPlaceId(it.place) !== pid));
               } catch (e) {
                 console.error(e);
+                // eslint-disable-next-line no-alert
                 alert("旅行プランから削除に失敗しました。");
               }
             }}
@@ -836,6 +880,7 @@ function MapPreview({
                 }
               } catch (e) {
                 console.error(e);
+                // eslint-disable-next-line no-alert
                 alert("旅行プランからの削除に失敗しました。");
               }
             }}
@@ -873,6 +918,7 @@ function MapPreview({
                 setPlanPins((prev) => prev.filter((it) => getPlaceId(it.place) !== placeId));
               } catch (e) {
                 console.error(e);
+                // eslint-disable-next-line no-alert
                 alert("旅行プランからの削除に失敗しました。");
               }
             }}
@@ -903,10 +949,7 @@ function MapPreview({
       )}
 
       {showPlanPicker && (
-        <PlanPickerModal
-          onClose={() => setShowPlanPicker(false)}
-          onSelect={handleChoosePlanToView}
-        />
+        <PlanPickerModal onClose={() => setShowPlanPicker(false)} onSelect={handleChoosePlanToView} />
       )}
     </div>
   );

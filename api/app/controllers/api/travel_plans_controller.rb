@@ -19,6 +19,10 @@ class Api::TravelPlansController < ApplicationController
     render json: { items: items, pagination: pagy_metadata(@pagy) }
   end
 
+  def show
+    render json: serialize_plan(@plan, include_count: true)
+  end
+
   def create
     name = params.require(:name)
     plan = TravelPlan.create!(user: current_user, name: name)
@@ -31,15 +35,11 @@ class Api::TravelPlansController < ApplicationController
     plans = current_user ? TravelPlan.where(user: current_user) : TravelPlan.none
 
     data = plans.map do |p|
-      it = place ? p.travel_plan_items.find_by(place_id: place.id) : nil
-      { id: p.id, name: p.name, has_place: it.present?, item_id: it&.id }
+      item = place ? p.travel_plan_items.find_by(place_id: place.id) : nil
+      { id: p.id, name: p.name, has_place: item.present?, item_id: item&.id }
     end
 
     render json: { plans: data, place_exists: place.present? }
-  end
-
-  def show
-    render json: serialize_plan(@plan, include_count: true)
   end
 
   def update
@@ -56,12 +56,12 @@ class Api::TravelPlansController < ApplicationController
 
   def set_plan
     @plan = current_user ? TravelPlan.find_by(id: params[:id], user: current_user) : nil
-    return head :not_found unless @plan
+    head :not_found unless @plan
   end
 
-  def serialize_plan(p, include_count: false)
-    h = { id: p.id, name: p.name, created_at: p.created_at, updated_at: p.updated_at }
-    h[:items_count] = (p.respond_to?(:items_count) ? p.items_count.to_i : p.travel_plan_items.count) if include_count
+  def serialize_plan(plan, include_count: false)
+    h = { id: plan.id, name: plan.name, created_at: plan.created_at, updated_at: plan.updated_at }
+    h[:items_count] = (plan.respond_to?(:items_count) ? plan.items_count.to_i : plan.travel_plan_items.count) if include_count
     h
   end
 end
