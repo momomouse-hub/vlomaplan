@@ -1,42 +1,47 @@
-## 業務フロー
-```mermaid
-graph TD
-  A[トップ画面アクセス] --> B{ログイン状態チェック}
-  B -- ログイン済み --> C[ユーザー識別（user_id）]
-  B -- 未ログイン --> D[ゲストトークン発行 → Cookieに保存]
-  C --> E[検索バーで動画検索]
-  D --> E
-  %% 動画検索の検索履歴を保存
-  E --> F[検索履歴を保存（search_histories）]
-  F --> G[YouTube APIで動画一覧取得]
-  G --> H[動画を選んで視聴]
-  H --> I{関連動画を取得？}
-  I -- ボタン押す --> J[YouTube APIで関連動画取得]
-  I -- 押さない --> K[スキップ]
-  J --> L[関連動画を表示]
-  K --> M
-  L --> M[気になった場所を検索（地図検索）]
-  %% 地図検索の検索履歴を保存
-  M --> N[検索履歴を保存（search_histories）]
-  N --> O[Google Maps APIで候補取得]
-  O --> P[地図にピンを表示]
-  P --> Q[ピンをクリック → 行きたい場所に追加]
-  Q --> R[行きたい場所から旅行プランに追加]
-  R --> S{ログイン済み？}
-  S -- Yes --> T[DBに保存（wishlists, travel_plans）]
-  S -- No --> U[一時保存（Redis等）]
-  U --> V[7日後に削除（定期バッチ処理）]
+# 🎥VLOMAPLAN🗺️
+『VLOMAPLAN』はVlogを観ながら旅行で行きたい場所を整理・プラン化できるWEBアプリです。
 
-  %% ログイン誘導など
-  D --> W[「ログインすれば保存できます」案内を表示]
-  W --> X[会員登録 or ログイン]
-  X --> C
-```
-## 画面遷移図
-![画面遷移図](./画面遷移図.png)
+「Vlog視聴・場所検索・リスト作成・プラン化」をほぼ一画面で完結するようになっています！
 
-## ワイヤーフレーム
-![ワイヤーフレーム](./ワイヤーフレーム.png)
+基本機能はログイン無しで使用可能です！お気軽にお試しください。
+> 未ログイン時のデータ保存は**7日間**、会員登録すると**無期限**で保存されます。未ログイン時に作成したデータは**登録時に引き継ぎ**可能です。
+
+
+URL:https://app.vlomaplan.com/
+
+**トップページ**
+ここにスクリーンショットを載せる
+
+## 使用した技術
+
+- フロントエンド
+  - HTML / CSS
+  - JavaScript（React 19, Vite）
+  - React Router（ルーティング）
+  - @vis.gl/react-google-maps（地図表示）
+  - Google Maps JavaScript API（Places API *New* / Autocomplete）
+  - react-modal-sheet（モバイル向けボトムシートUI）
+  - ESLint / Prettier（コード整形・静的解析）
+
+- バックエンド
+  - Ruby 3.4.5
+  - Ruby on Rails 8.0.2（APIモード）
+  - RSpec（テスト）
+  - RuboCop（コード解析）
+  - bcrypt（パスワードハッシュ）
+
+- データベース
+  - MySQL 8.4
+
+- 外部API・サービス連携
+  - YouTube Data API v3（動画検索・視聴履歴の取り扱い）
+  - Google Maps Platform（Maps JS / Places API *New* / Autocomplete）
+
+- インフラ・開発環境
+  - Docker / Docker Compose
+  - AWS（ECR, ECS Fargate, VPC, ALB, RDS, S3, CloudFront, Route53, ACM, Systems Manager Parameter Store）
+  - シークレット管理：AWS SSM Parameter Store
+  - バージョン管理／開発フロー：GitHub（main／develop運用・PRレビュー）
 
 ## ER図
 ```mermaid
@@ -136,20 +141,24 @@ erDiagram
   WISHLISTS }o--|| PLACES : includes
 ```
 
+## AWS構成図
+![インフラ構成図](./documents/インフラ構成図.png)
 
-### 制約
-- WISHLISTS: UNIQUE(user_id, place_id) / NOT NULL
-- PLACE_OPENING_HOURS:
-    - UNIQUE(place_id, weekday)
-    - open_time / close_time: is_closed = true の場合のみ NULL 可
-- VIDEO_VIEW_PLACES:
-    - UNIQUE(video_view_id, place_id)
-    - video_view_id / place_id: NOT NULL
-- 全カラム NOT NULL
-  - 例外:
-    - PLACE_OPENING_HOURS.open_time / close_time（is_closed = true の場合のみ NULL 可）
+## 実装機能一覧
+- 基本機能
+  - 新規会員登録・ログイン機能
+  - YouTubeのVlog動画検索・視聴機能
+  - GoogleMapでの場所検索機能
+  - 行きたい場所リストへの登録・削除
+  - 旅行プランの作成・編集・削除
+  - 旅行プランの並べ替え機能
+  - モーダルでのマップの開閉機能(画面幅が狭い時)
 
+### データ保存について
 
-
-## システム構成図
-![システム構成図](システム構成図.png)
+- ゲスト利用（ログインなし）
+  - 作成した「行きたい場所」「旅行プラン」は**7日間**保存されます（期限を過ぎると自動削除）。
+- 会員登録／ログイン後
+  - データはサーバーに**無期限保存**され、**複数端末で同期**されます。
+- 引き継ぎ
+  - ゲストで作成したデータは、**会員登録またはログイン時にそのまま引き継がれます**。

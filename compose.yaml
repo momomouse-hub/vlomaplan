@@ -1,0 +1,47 @@
+services:
+
+  api:
+    build:
+      context: ./api
+      target: dev
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./api:/app
+      - gem_data:/usr/local/bundle
+    depends_on:
+      - db
+    environment:
+      RAILS_ENV: development
+    stdin_open: true
+    tty: true
+    env_file:
+      - .env
+
+  front:
+    build: ./front
+    command: sh -c "npm ci && npm run dev -- --host 0.0.0.0"
+    ports:
+      - 5173:5173
+    volumes:
+      - ./front:/app
+      - /app/node_modules
+    depends_on:
+      - api
+
+  db:
+    image: mysql:8.4
+    ports:
+      - 4306:3306
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./mysql/conf.d/my.cnf:/etc/mysql/conf.d/my.cnf
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+    env_file:
+      - .env
+
+volumes:
+  mysql-data:
+  gem_data:
