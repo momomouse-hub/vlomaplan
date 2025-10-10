@@ -29,7 +29,7 @@ export function invalidatePlanMembership(placeId) {
 
 async function fetchMembership(placeId) {
   const res = await plansContainingPlace({ placeId });
-  const first = (res?.plans || []).find(p => p.hasPlace);
+  const first = (res?.plans || []).find((p) => p.hasPlace);
   const mem = first ? { planId: first.id, planName: first.name, itemId: first.itemId } : undefined;
   primePlanMembership(placeId, mem);
   return mem;
@@ -51,12 +51,15 @@ export async function ensureMembershipForPlaceId(placeId) {
 
 export async function ensureMembershipsForPlaceIds(placeIds = []) {
   const unique = Array.from(new Set(placeIds.filter(Boolean)));
-  const promises = unique.map(async pid => {
+  const promises = unique.map(async (pid) => {
     const v = await ensureMembershipForPlaceId(pid);
     return [pid, v];
   });
   const entries = await Promise.all(promises);
+
   const map = {};
-  for (const [pid, v] of entries) map[pid] = v;
+  entries.forEach(([pid, v]) => {
+    map[pid] = v;
+  });
   return map;
 }

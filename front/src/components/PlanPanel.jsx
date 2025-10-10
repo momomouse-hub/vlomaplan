@@ -1,7 +1,5 @@
+/* eslint-disable react/jsx-no-bind */
 import { useEffect, useState } from "react";
-import PlaceDetailCard from "./PlaceDetailCard";
-import { getPlaceId } from "../utils/place";
-import { reorderPlanItems } from "../api/travel_plans";
 import {
   DndContext,
   PointerSensor,
@@ -15,7 +13,67 @@ import {
   arrayMove,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
+// eslint-disable-next-line import/no-extraneous-dependencies
 import { CSS } from "@dnd-kit/utilities";
+
+import PlaceDetailCard from "./PlaceDetailCard";
+import { getPlaceId } from "../utils/place";
+import { reorderPlanItems } from "../api/travel_plans";
+
+/** 外だし：react/no-unstable-nested-components 回避 */
+function SortableRow({ id, index, children, isSorting }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+    useSortable({ id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    cursor: isSorting ? "grab" : "default",
+    opacity: isDragging ? 0.9 : 1,
+    background: isDragging ? "#fafafa" : "transparent",
+    borderRadius: 12,
+    display: "grid",
+    gridTemplateColumns: "28px 1fr",
+    alignItems: "start",
+    gap: 8,
+    padding: 2,
+  };
+
+  const indexBadge = (
+    <div
+      aria-hidden
+      style={{
+        width: 24,
+        height: 24,
+        borderRadius: 12,
+        background: "#2ca478",
+        color: "#fff",
+        fontSize: 12,
+        fontWeight: 700,
+        display: "grid",
+        placeItems: "center",
+        marginTop: 6,
+        userSelect: "none",
+      }}
+      title={`順序 ${index + 1}`}
+    >
+      {index + 1}
+    </div>
+  );
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      // DnDの属性/リスナはスプレッド以外の実装が現実的でないため、ここだけ許可
+      // eslint-disable-next-line react/jsx-props-no-spreading
+      {...(isSorting ? { ...attributes, ...listeners } : {})}
+    >
+      {indexBadge}
+      {children}
+    </div>
+  );
+}
 
 export default function PlanPanel({
   plan,
@@ -72,6 +130,7 @@ export default function PlanPanel({
         overflow: "hidden",
       };
 
+  /** アイテム単位の保存中フラグを面倒見つつ任意の非同期処理を実行 */
   const withSaving = (itemId, fn) => async () => {
     if (!fn) return;
     if (savingItemIds.has(itemId)) return;
@@ -87,52 +146,6 @@ export default function PlanPanel({
     }
   };
 
-  function SortableRow({ id, index, children }) {
-    const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
-      useSortable({ id });
-    const style = {
-      transform: CSS.Transform.toString(transform),
-      transition,
-      cursor: isSorting ? "grab" : "default",
-      opacity: isDragging ? 0.9 : 1,
-      background: isDragging ? "#fafafa" : "transparent",
-      borderRadius: 12,
-      display: "grid",
-      gridTemplateColumns: "28px 1fr",
-      alignItems: "start",
-      gap: 8,
-      padding: 2,
-    };
-    return (
-      <div
-        ref={setNodeRef}
-        style={style}
-        {...(isSorting ? { ...attributes, ...listeners } : {})}
-      >
-        <div
-          aria-hidden
-          style={{
-            width: 24,
-            height: 24,
-            borderRadius: 12,
-            background: "#2ca478",
-            color: "#fff",
-            fontSize: 12,
-            fontWeight: 700,
-            display: "grid",
-            placeItems: "center",
-            marginTop: 6,
-            userSelect: "none",
-          }}
-          title={`順序 ${index + 1}`}
-        >
-          {index + 1}
-        </div>
-        {children}
-      </div>
-    );
-  }
-
   async function commitReorder(nextArr, prevArr) {
     const nextSynced = nextArr.map((it, i) => ({
       ...it,
@@ -147,6 +160,7 @@ export default function PlanPanel({
       await reorderPlanItems({ planId: plan.id, items: payload });
     } catch (e) {
       console.error(e);
+      // eslint-disable-next-line no-alert
       alert("並べ替えの保存に失敗しました。ネットワーク状況をご確認ください。");
       setOrdered(prevArr);
       onItemsReordered?.(prevArr);
@@ -173,6 +187,7 @@ export default function PlanPanel({
       }}
       style={containerStyle}
     >
+      {/* header */}
       <div
         style={{
           display: "flex",
@@ -186,6 +201,7 @@ export default function PlanPanel({
         <div style={{ marginLeft: "auto", fontSize: 12, color: "#666" }}>
           {loading ? "読込中…" : `${ordered.length}件`}
         </div>
+
         <button
           type="button"
           onClick={() => setIsSorting((v) => !v)}
@@ -203,6 +219,7 @@ export default function PlanPanel({
         >
           {isSorting ? "完了" : "並べ替える"}
         </button>
+
         <button
           type="button"
           aria-label="close"
@@ -222,6 +239,7 @@ export default function PlanPanel({
         </button>
       </div>
 
+      {/* list */}
       <div
         style={{
           flex: 1,
@@ -247,13 +265,15 @@ export default function PlanPanel({
                 const isSaving = savingItemIds.has(it.id);
 
                 return (
-                  <SortableRow key={it.id} id={it.id} index={idx}>
+                  <SortableRow key={it.id} id={it.id} index={idx} isSorting={isSorting}>
                     <PlaceDetailCard
                       variant="inline"
                       place={it.place}
                       thumbnailUrl={it.thumbnailUrl}
                       isSaved={!!wishlistId}
                       isSaving={isSaving}
+                      // ここはアイテムIDを閉じ込める必要があるため inline を許容
+                      // eslint-disable-next-line react/jsx-no-bind
                       onAdd={
                         wishlistId
                           ? undefined
@@ -261,6 +281,7 @@ export default function PlanPanel({
                               await onAddWishlist?.(it.place);
                             })
                       }
+                      // eslint-disable-next-line react/jsx-no-bind
                       onRemove={wishlistId ? () => onRemoveWishlist?.(wishlistId) : undefined}
                       onAddToPlan={undefined}
                       planMembership={mem}
@@ -309,12 +330,14 @@ export default function PlanPanel({
                 >
                   {idx + 1}
                 </div>
+
                 <PlaceDetailCard
                   variant="inline"
                   place={it.place}
                   thumbnailUrl={it.thumbnailUrl}
                   isSaved={!!wishlistId}
                   isSaving={isSaving}
+                  // eslint-disable-next-line react/jsx-no-bind
                   onAdd={
                     wishlistId
                       ? undefined
@@ -322,10 +345,13 @@ export default function PlanPanel({
                           await onAddWishlist?.(it.place);
                         })
                   }
+                  // eslint-disable-next-line react/jsx-no-bind
                   onRemove={wishlistId ? () => onRemoveWishlist?.(wishlistId) : undefined}
                   onAddToPlan={undefined}
                   planMembership={mem}
+                  // eslint-disable-next-line react/jsx-no-bind
                   onRemoveFromPlan={() => onRemoveFromPlan?.(it.id, pid)}
+                  // eslint-disable-next-line react/jsx-no-bind
                   onRootClick={() => onSelect?.(it)}
                 />
               </div>
@@ -340,6 +366,7 @@ export default function PlanPanel({
               <button
                 type="button"
                 onClick={() => {
+                  // eslint-disable-next-line no-alert
                   const ok = window.confirm(
                     `「${plan.name}」を削除します。よろしいですか？（元に戻せません）`
                   );

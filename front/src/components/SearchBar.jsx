@@ -45,7 +45,11 @@ function SearchBar({
 
     if (isIOS) {
       setTimeout(() => {
-        try { window.scrollTo(0, 0); } catch (_) {}
+        try {
+          window.scrollTo(0, 0);
+        } catch (err) {
+          console.debug("window.scrollTo failed (iOS workaround):", err);
+        }
       }, 0);
     }
   };
@@ -57,7 +61,11 @@ function SearchBar({
     if (!k) return;
 
     if (onBeforeSubmit) {
-      try { await onBeforeSubmit(); } catch (_) {}
+      try {
+        await onBeforeSubmit();
+      } catch (err) {
+        console.debug("onBeforeSubmit threw, continuing submit:", err);
+      }
     }
 
     closeKeyboardHard();
@@ -97,7 +105,6 @@ function SearchBar({
           value={keyword}
           onChange={(e) => setKeyword(e.target.value)}
           placeholder={placeholder}
-          autoFocus={autoFocus}
           aria-label="検索キーワード"
           style={{
             flex: 1,

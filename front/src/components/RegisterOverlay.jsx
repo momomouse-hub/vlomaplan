@@ -91,18 +91,44 @@ export default function RegisterOverlay({ onClose, onSwitchToLogin }) {
 
   return (
     <div
-      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-label="ユーザー登録"
       style={{
         position: "fixed",
         inset: 0,
-        background: "rgba(0,0,0,0.6)",
         zIndex: 1000,
         display: "grid",
         placeItems: "start center",
         paddingTop: 80,
       }}
     >
-      <div onClick={(e) => e.stopPropagation()} style={cardStyle}>
+      <button
+        type="button"
+        aria-label="閉じる（背景）"
+        onClick={onClose}
+        onKeyDown={(e) => {
+          if (e.key === "Escape") onClose();
+        }}
+        style={{
+          position: "fixed",
+          inset: 0,
+          background: "rgba(0,0,0,0.6)",
+          border: "none",
+          padding: 0,
+          margin: 0,
+          cursor: "default",
+          zIndex: 0,
+        }}
+      />
+
+      <div
+        style={{
+          ...cardStyle,
+          position: "relative",
+          zIndex: 1,
+        }}
+      >
         {msg && (
           <p
             style={{
@@ -198,20 +224,20 @@ export default function RegisterOverlay({ onClose, onSwitchToLogin }) {
             ログインへ
           </button>
 
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="閉じる"
-            style={{
-              width: "100%",
-              padding: "10px 12px",
-              border: "none",
-              background: "transparent",
-              color: "#47625a",
-            }}
-          >
-            × とじる（Esc）
-          </button>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="閉じる"
+          style={{
+            width: "100%",
+            padding: "10px 12px",
+            border: "none",
+            background: "transparent",
+            color: "#47625a",
+          }}
+        >
+          × とじる（Esc）
+        </button>
         </div>
       </div>
     </div>

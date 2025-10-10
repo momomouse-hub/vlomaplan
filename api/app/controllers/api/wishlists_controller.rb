@@ -51,8 +51,17 @@ class Api::WishlistsController < ApplicationController
   end
 
   def create
-    pl = params.require(:place).permit(:place_id, :placeId, :name, :address, :latitude, :longitude)
-    vv = params[:video_view].present? ? params.require(:video_view).permit(:youtube_video_id, :title, :thumbnail_url, :search_history_id) : nil
+    pl_wrapped = params.expect(place: %i[place_id placeId name address latitude longitude])
+    pl = pl_wrapped.is_a?(ActionController::Parameters) && (pl_wrapped.key?(:place) || pl_wrapped.key?('place')) ? (pl_wrapped[:place] || pl_wrapped['place']) : pl_wrapped
+    raise ActionController::ParameterMissing, :place if pl.blank?
+
+    vv = nil
+    if params.key?(:video_view) || params.key?('video_view')
+      vv_wrapped = params.expect(video_view: %i[youtube_video_id title thumbnail_url search_history_id])
+      vv = vv_wrapped.is_a?(ActionController::Parameters) && (vv_wrapped.key?(:video_view) || vv_wrapped.key?('video_view')) ? (vv_wrapped[:video_view] || vv_wrapped['video_view']) : vv_wrapped
+      raise ActionController::ParameterMissing, :video_view if vv.blank?
+
+    end
 
     place_id = pl[:place_id].presence || pl[:placeId].presence
     return render json: { error: "place_id is required" }, status: :bad_request if place_id.blank?
@@ -106,12 +115,15 @@ class Api::WishlistsController < ApplicationController
   private
 
   def place_params
-    raw = params.require(:place).permit(:place_id, :placeId, :name, :address, :latitude, :longitude)
+    raw_wrapped = params.expect(place: %i[place_id placeId name address latitude longitude])
+    raw = raw_wrapped.is_a?(ActionController::Parameters) && (raw_wrapped.key?(:place) || raw_wrapped.key?('place')) ? (raw_wrapped[:place] || raw_wrapped['place']) : raw_wrapped
+    raise ActionController::ParameterMissing, :place if raw.blank?
+
     {
-      place_id:  raw[:place_id] || raw[:placeId],
-      name:      raw[:name],
-      address:   raw[:address],
-      latitude:  raw[:latitude],
+      place_id: raw[:place_id] || raw[:placeId],
+      name: raw[:name],
+      address: raw[:address],
+      latitude: raw[:latitude],
       longitude: raw[:longitude]
     }
   end

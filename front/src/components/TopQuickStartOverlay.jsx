@@ -2,7 +2,6 @@ import { useEffect } from "react";
 import SearchBar from "./SearchBar";
 
 export default function TopQuickStartOverlay({ onClose, onOpenLogin, onOpenRegister }) {
-
   useEffect(() => {
     const onKey = (e) => e.key === "Escape" && onClose();
     document.addEventListener("keydown", onKey);
@@ -21,19 +20,39 @@ export default function TopQuickStartOverlay({ onClose, onOpenLogin, onOpenRegis
 
   return (
     <div
-      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-label="クイックスタート"
       style={{
         position: "fixed",
         inset: 0,
-        background: "rgba(0,0,0,0.6)",
         zIndex: 1000,
         display: "grid",
         placeItems: "start center",
         paddingTop: 80,
       }}
     >
+      {/* 背景はネイティブ button にして a11y ルールを満たす */}
+      <button
+        type="button"
+        aria-label="閉じる（背景）"
+        onClick={onClose}
+        onKeyDown={(e) => {
+          if (e.key === "Escape") onClose();
+        }}
+        style={{
+          position: "fixed",
+          inset: 0,
+          background: "rgba(0,0,0,0.6)",
+          border: "none",
+          padding: 0,
+          margin: 0,
+          cursor: "default",
+        }}
+      />
+
+      {/* モーダル本体（背景とは別要素。stopPropagation は不要） */}
       <div
-        onClick={(e) => e.stopPropagation()}
         style={{
           width: "min(560px, 92vw)",
           boxSizing: "border-box",
@@ -41,9 +60,12 @@ export default function TopQuickStartOverlay({ onClose, onOpenLogin, onOpenRegis
           background: "rgba(255,255,255,0.94)",
           boxShadow: "0 10px 30px rgba(0,0,0,0.2)",
           padding: 20,
+          position: "relative",
+          zIndex: 1,
         }}
       >
         <div style={{ marginBottom: 14 }}>
+          {/* SearchBar 側で useEffect によるフォーカス制御。input の autoFocus 属性は使っていないので a11y OK */}
           <SearchBar placeholder="Vlogを探す" autoFocus />
         </div>
 
