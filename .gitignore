@@ -1,19 +1,84 @@
+# ------------------------------
+# OS / Editor
+# ------------------------------
 .DS_Store
-.vscode/
+Thumbs.db
 *~
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ------------------------------
+# Env files
+# （例外: *.example は追跡）
+# ------------------------------
 .env
 .env.*
-**/log/*
-**/tmp/
-!**/log/.keep
-!**/tmp/.keep
-.bundle/
-vendor/bundle
-**/config/master.key
-**/config/credentials.yml.enc
-**/config/*.key
-**/config/*.enc
-node_modules/
-**/.ruby-lsp/
-**/log/*.log
-**/tmp/cache/bootsnap/*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
+
+# ------------------------------
+# Node / Vite (front)
+# ------------------------------
+front/node_modules/
+front/dist/
+front/.vite/
+front/coverage/
+front/.eslintcache
+front/.parcel-cache/
+front/.turbo/
+front/.cache/
+front/yarn-error.log
+front/pnpm-lock.yaml
+front/package-lock.json
+# ------------------------------
+# Rails (api)
+# ------------------------------
+api/.bundle/
+api/vendor/bundle/
+api/node_modules/
+
+api/log/*
+!api/log/.keep
+api/tmp/*
+!api/tmp/.keep
+api/tmp/cache/bootsnap/*
+
+api/storage/*
+!api/storage/.keep
+
+api/public/assets
+api/.byebug_history
+api/.rspec_status
+
+# Rails credentials / keys
+api/config/master.key
+api/config/credentials.yml.enc
+api/config/*.key
+api/config/*.enc
+
+# ------------------------------
+# Coverage / Reports (any)
+# ------------------------------
+**/coverage/
+**/reports/
+**/.nyc_output/
+
+# ------------------------------
+# Docker / Compose artifacts
+# ------------------------------
+# Compose が吐く一時ファイル等を念のため
+**/.docker/
+**/.docker-cache/
+**/.compose-cache/
+
+# ------------------------------
+# Misc
+# ------------------------------
+# 生成物全般
+**/build/
+**/dist/
+**/.cache/

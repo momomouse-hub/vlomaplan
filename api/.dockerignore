@@ -1,10 +1,38 @@
+# --- VCS / OS
 .git
-log
-tmp
-node_modules
+.gitignore
+.gitattributes
+.DS_Store
+
+# --- Secrets
+config/master.key
+config/credentials.yml.enc
+config/*.key
+config/*.enc
+.env
+.env.*
+
+# --- テスト / 開発ツール
 spec
 test
 coverage
+.rspec_status
+.byebug_history
+
+# --- 生成物 / キャッシュ
+log
+tmp
+tmp/cache/bootsnap/*
+tmp/pids
+tmp/sockets
+storage/*
+public/assets
+
+# --- 依存関係のローカル配置
+node_modules
+vendor/bundle
+.bundle
+
+# --- Compose や Docker 補助
 docker-compose.yml
 Dockerfile
-.env
