@@ -112,6 +112,7 @@ function SearchBar({
             maxWidth: "100%",
             boxSizing: "border-box",
             padding: "12px 16px",
+            fontSize: 16,
             borderRadius: 9999,
             border: "1px solid #cfd5d9",
             outline: "none",
