@@ -235,7 +235,7 @@ export default function TravelPlanModal({ place, onClose, onAdded }) {
             <select
               value={selectedPlanId ?? ""}
               onChange={handleSelectChange}
-              style={{ width: "100%", border: "1px solid #eee", borderRadius: 10, padding: "10px" }}
+              style={{ width: "100%", border: "1px solid #eee", borderRadius: 10, padding: "10px", fontSize: 16 }}
               aria-label="旅行プランの選択"
             >
               <option value={NEW_VALUE}>＋ 新しいプランを作成…</option>
@@ -263,7 +263,7 @@ export default function TravelPlanModal({ place, onClose, onAdded }) {
               onChange={(e) => setNewPlanName(e.target.value)}
               placeholder="新しいプラン名を入力"
               aria-label="新しいプラン名"
-              style={{ flex: 1, border: "1px solid #ddd", borderRadius: 8, padding: "8px 10px" }}
+              style={{ flex: 1, border: "1px solid #ddd", borderRadius: 8, padding: "8px 10px", fontSize: 16 }}
             />
             <button
               type="button"
