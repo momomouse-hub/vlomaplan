@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_10_04_161709) do
+ActiveRecord::Schema[8.0].define(version: 2025_10_17_121748) do
   create_table "places", charset: "utf8mb4", collation: "utf8mb4_0900_ai_ci", force: :cascade do |t|
     t.string "name", null: false
     t.string "address", null: false
@@ -22,7 +22,7 @@ ActiveRecord::Schema[8.0].define(version: 2025_10_04_161709) do
     t.index ["place_id"], name: "index_places_on_place_id", unique: true
   end
 
-  create_table "travel_plan_items", charset: "utf8mb4", collation: "utf8mb4_unicode_ci", force: :cascade do |t|
+  create_table "travel_plan_items", charset: "utf8mb4", collation: "utf8mb4_0900_ai_ci", force: :cascade do |t|
     t.bigint "travel_plan_id", null: false
     t.bigint "place_id", null: false
     t.integer "sort_order", default: 0, null: false
@@ -34,7 +34,7 @@ ActiveRecord::Schema[8.0].define(version: 2025_10_04_161709) do
     t.index ["travel_plan_id"], name: "index_travel_plan_items_on_travel_plan_id"
   end
 
-  create_table "travel_plans", charset: "utf8mb4", collation: "utf8mb4_unicode_ci", force: :cascade do |t|
+  create_table "travel_plans", charset: "utf8mb4", collation: "utf8mb4_0900_ai_ci", force: :cascade do |t|
     t.bigint "user_id", null: false
     t.string "name", limit: 100, null: false
     t.datetime "created_at", null: false
@@ -43,7 +43,7 @@ ActiveRecord::Schema[8.0].define(version: 2025_10_04_161709) do
     t.index ["user_id"], name: "index_travel_plans_on_user_id"
   end
 
-  create_table "user_credentials", charset: "utf8mb4", collation: "utf8mb4_unicode_ci", force: :cascade do |t|
+  create_table "user_credentials", charset: "utf8mb4", collation: "utf8mb4_0900_ai_ci", force: :cascade do |t|
     t.bigint "user_id", null: false
     t.string "email", null: false
     t.string "password_digest", limit: 60, null: false
@@ -53,7 +53,7 @@ ActiveRecord::Schema[8.0].define(version: 2025_10_04_161709) do
     t.index ["user_id"], name: "index_user_credentials_on_user_id", unique: true
   end
 
-  create_table "user_visits", charset: "utf8mb4", collation: "utf8mb4_unicode_ci", force: :cascade do |t|
+  create_table "user_visits", charset: "utf8mb4", collation: "utf8mb4_0900_ai_ci", force: :cascade do |t|
     t.bigint "user_id", null: false
     t.string "token", limit: 36, null: false
     t.datetime "created_at", null: false
@@ -61,9 +61,10 @@ ActiveRecord::Schema[8.0].define(version: 2025_10_04_161709) do
     t.index ["user_id"], name: "index_user_visits_on_user_id", unique: true
   end
 
-  create_table "users", charset: "utf8mb4", collation: "utf8mb4_unicode_ci", force: :cascade do |t|
+  create_table "users", charset: "utf8mb4", collation: "utf8mb4_0900_ai_ci", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.index ["created_at"], name: "index_users_on_created_at"
   end
 
   create_table "video_view_places", charset: "utf8mb4", collation: "utf8mb4_0900_ai_ci", force: :cascade do |t|
@@ -86,7 +87,7 @@ ActiveRecord::Schema[8.0].define(version: 2025_10_04_161709) do
     t.index ["youtube_video_id"], name: "index_video_views_on_youtube_video_id", unique: true
   end
 
-  create_table "wishlists", charset: "utf8mb4", collation: "utf8mb4_unicode_ci", force: :cascade do |t|
+  create_table "wishlists", charset: "utf8mb4", collation: "utf8mb4_0900_ai_ci", force: :cascade do |t|
     t.bigint "user_id", null: false
     t.bigint "place_id", null: false
     t.datetime "created_at", null: false
